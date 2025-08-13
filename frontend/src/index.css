@@ -1,7 +1,31 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/* Add this to the end of your src/index.css file */
+
+/* --- SOLUTION STARTS HERE --- */
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Make the body a flex container that arranges children vertically */
+  display: flex;
+  flex-direction: column;
+
+  /* Ensure the body is at least as tall as the browser window */
+  min-height: 100vh; 
+  
+  /* Set a default background color to prevent white flashes */
+  background-color: #000;
+}
+
+/* Tell the main content area to take up all available empty space */
+main {
+  flex-grow: 1;
+}
+
+/* --- SOLUTION ENDS HERE --- */
+
 
 @keyframes fadeInDown {
   from {
@@ -37,15 +61,8 @@
   animation-delay: 500ms;
 }
 
-/* In src/index.css */
-
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
 /* Funky Animated Background for Dark Mode */
-.dark body {
+/* .dark body {
     background-color: #000000;
     background-image:
         radial-gradient(at 10% 90%, hsl(210, 80%, 30%) 0px, transparent 50%),
@@ -59,9 +76,25 @@ body {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
-}
+} */
 
 /* Helper classes used in the JS component */
 .perspective-1000 { perspective: 1000px; }
 .transform-style-3d { transform-style: preserve-3d; }
 .backface-hidden { backface-visibility: hidden; }
+
+/* Add this next to your other animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation:slideInRight 0.5s ease-out forwards;
+}

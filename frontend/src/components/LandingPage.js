@@ -174,7 +174,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
     {
       title: 'Aura PDF Reader',
       description: 'Go beyond static text. Our intelligent reader analyzes your documents, automatically generating summaries, key-term flashcards, and interactive Q&As. Highlight a section to get instant multi-language translations or simplify complex jargon into easy-to-understand language.',
-      image: 'https://www.sparity.com/wp-content/uploads/2024/01/Benefits-of-AI-for-Businesses-in-Driving-Digital-Transformation-3.webp',
+      image: 'https://t4.ftcdn.net/jpg/09/77/24/29/360_F_977242971_AvxHXLmc9XlpkxcMAcMX68nLWwUNE3bz.jpg',
       iconPath: 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25',
     },
     {
@@ -289,7 +289,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         </div>
 
         <section className="relative min-h-screen flex items-center justify-center text-center overflow-hidden px-4">
-            <div className="absolute inset-0 z-10" style={{ backgroundImage: `url('https://assets.techcircle.in/uploads/article-image/2024/05/images/34736-ai-projects.jpg')`, backgroundSize: 'cover', backgroundPosition: 'center', opacity:0.1 }}></div>
+            <div className="absolute inset-0 z-10" style={{ backgroundImage: `url('https://s2w.inc/files/contents/c9856ee8-6d00-45bc-9c72-855ed6d800fb')`, backgroundSize: 'cover', backgroundPosition: 'center', opacity:0.1 }}></div>
             <div className="relative z-20 p-6">
                 <h1 className="text-6xl md:text-8xl lg:text-9xl font-black uppercase cinematic-title mb-6" data-aos="fade-down">
                 Study Sync

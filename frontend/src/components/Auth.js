@@ -13,9 +13,9 @@ export const AuthForm = ({ isLogin, onSubmit, onSwitch, error }) => {
     };
 
     return (
-      <div className="h-screen w-screen flex items-center justify-center">
-        <div className="bg-white/10 dark:bg-black/50 backdrop-blur-sm p-8 rounded-xl shadow-2xl shadow-blue-900/20 border border-blue-800/30 w-full max-w-md">
-          <h2 className="text-3xl font-bold text-center mb-8">{isLogin ? 'Login' : 'Sign Up'}</h2>
+      <div className="min-h-screen w-screen flex items-center justify-center p-4">
+        <div className="bg-white/10 dark:bg-black/50 backdrop-blur-sm p-6 sm:p-8 rounded-xl shadow-2xl shadow-blue-900/20 border border-blue-800/30 w-full max-w-xs sm:max-w-sm md:max-w-md">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">{isLogin ? 'Login' : 'Sign Up'}</h2>
           <form onSubmit={handleSubmit}>
             {!isLogin && (
               <div className="mb-4">

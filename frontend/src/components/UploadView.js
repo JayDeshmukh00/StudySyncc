@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Icon, Spinner } from './Icon';
 
@@ -45,11 +44,13 @@ export const UploadView = ({ onPlanGenerated, onBack }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <label className="block text-gray-600 dark:text-gray-400 text-sm font-bold mb-2" htmlFor="start-date">Start Date</label>
-                <input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-3 py-2 text-gray-800 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"/>
+                {/* FIX: Added dark:[color-scheme:dark] to make the calendar icon visible in dark mode */}
+                <input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-3 py-2 text-gray-800 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 dark:[color-scheme:dark]"/>
               </div>
               <div>
                 <label className="block text-gray-600 dark:text-gray-400 text-sm font-bold mb-2" htmlFor="end-date">End Date</label>
-                <input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-3 py-2 text-gray-800 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500"/>
+                {/* FIX: Added dark:[color-scheme:dark] to make the calendar icon visible in dark mode */}
+                <input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-3 py-2 text-gray-800 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 dark:[color-scheme:dark]"/>
               </div>
             </div>
             {error && <div className="bg-red-100 dark:bg-red-900/50 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded relative mb-4" role="alert"><strong className="font-bold">Error: </strong><span className="block sm:inline">{error}</span></div>}

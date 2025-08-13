@@ -42,17 +42,15 @@ export const Chat = ({ socket, roomId, myName }) => {
                 text: newMessage.trim(),
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             };
-            // Send the message to the server
             socket.emit('send-chat-message', { roomId, message: messageData });
-            
-            // Optimistically add the message to our own UI
             setMessages(prev => [...prev, messageData]);
             setNewMessage('');
         }
     };
 
+    // FIX: Changed classes to make the component fill the available vertical space in the sidebar.
     return (
-        <div className="h-full max-h-[40vh] flex flex-col bg-gray-900/50 rounded-lg border border-gray-700">
+        <div className="h-full flex flex-col">
             <h3 className="text-lg font-bold p-3 flex-shrink-0 border-b border-gray-700">Chat</h3>
             <div className="flex-grow overflow-y-auto p-3 space-y-4">
                 {messages.map((msg) => (

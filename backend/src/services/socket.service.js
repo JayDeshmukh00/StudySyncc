@@ -1,9 +1,5 @@
 // src/services/socket.service.js
-
-// This function encapsulates all Socket.IO related event listeners and logic.
-// It takes the `io` instance as an argument.
 module.exports = function(io) {
-    // In-memory storage for rooms. For production, you might use Redis.
     const rooms = {};
 
     io.on('connection', (socket) => {
@@ -19,16 +15,22 @@ module.exports = function(io) {
                 };
                 console.log(`Room created: ${roomId}`);
             }
-            rooms[roomId].users[socket.id] = { id: socket.id, name: userName };
-            socket.roomId = roomId; // Attach roomId to the socket instance for easy access
+
+            // CHANGE: More robust logic for handling user joining
+            const currentUser = { id: socket.id, name: userName };
+            rooms[roomId].users[socket.id] = currentUser;
+            socket.roomId = roomId;
             socket.join(roomId);
 
             console.log(`User ${userName} (${socket.id}) joined room ${roomId}`);
 
-            // Send the current list of users to the new user
-            socket.emit('all-users', Object.values(rooms[roomId].users));
+            // Get a list of everyone else *already* in the room
+            const otherUsers = Object.values(rooms[roomId].users).filter(u => u.id !== socket.id);
+
+            // 1. Send the list of existing users ONLY to the new user
+            socket.emit('all-users', otherUsers);
             
-            // Send the complete room state to the new user
+            // 2. Send the complete room state to the new user
             socket.emit('room-state', {
                 host: Object.keys(rooms[roomId].users)[0],
                 whiteboard: rooms[roomId].whiteboardData,
@@ -55,7 +57,6 @@ module.exports = function(io) {
         socket.on('send-chat-message', ({ roomId, message }) => {
             if (rooms[roomId]) {
                 rooms[roomId].chatHistory.push(message);
-                // Broadcast to everyone in the room except the sender
                 socket.to(roomId).emit('receive-chat-message', message);
             }
         });
@@ -86,10 +87,8 @@ module.exports = function(io) {
                 console.log(`User ${rooms[roomId].users[socket.id].name} (${socket.id}) disconnected from room ${roomId}`);
                 delete rooms[roomId].users[socket.id];
                 
-                // Notify remaining users that someone left
                 socket.to(roomId).emit('user-left', { id: socket.id });
 
-                // If the room is now empty, delete it to free up memory
                 if (Object.keys(rooms[roomId].users).length === 0) {
                     delete rooms[roomId];
                     console.log(`Room deleted: ${roomId}`);
