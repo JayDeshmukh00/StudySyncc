@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import Peer from 'simple-peer';
 import { Video } from './Video';
@@ -11,12 +11,8 @@ const SOCKET_SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:300
 
 const peerConfig = {
   iceServers: [
-    { 
-      urls: 'stun:stun.l.google.com:19302' 
-    },
-    { 
-      urls: 'stun:stun.openrelay.org:3478'
-    },
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun.openrelay.org:3478' },
     {
       urls: 'turn:openrelay.turn.serv.net:3478',
       username: 'openrelayproject',
@@ -72,14 +68,13 @@ export const StudyRoom = ({ roomId, userName, onLeaveRoom }) => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [layout, setLayout] = useState('whiteboard');
 
-    // MODIFICATION: Initialize socketRef to hold the socket instance.
     const socketRef = useRef();
     const myVideoRef = useRef();
     const peersRef = useRef({});
     const screenTrackRef = useRef();
     const mainStageRef = useRef();
+    const remoteScreenRef = useRef();
 
-    // This hook now handles getting the media AND attaching it directly.
     useEffect(() => {
         let streamAccess;
         navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -101,68 +96,73 @@ export const StudyRoom = ({ roomId, userName, onLeaveRoom }) => {
         }
     }, []);
     
-    const createPeer = useCallback((userToSignal, callerID, stream, name) => {
-        const peer = new Peer({ initiator: true, trickle: false, stream, config: peerConfig });
-        peer.on('signal', signal => {
-            if (socketRef.current) {
-                socketRef.current.emit('sending-signal', { userToSignal, callerID, signal, name });
-            }
-        });
-        return peer;
-    }, []);
-
-    const addPeer = useCallback((incomingSignal, callerID, stream, name) => {
-        const peer = new Peer({ initiator: false, trickle: false, stream, config: peerConfig });
-        peer.on('signal', signal => {
-            if (socketRef.current) {
-                socketRef.current.emit('returning-signal', { signal, callerID });
-            }
-        });
-        peer.signal(incomingSignal);
-        return peer;
-    }, []);
-
-    // MODIFICATION: This effect now handles socket connection and events robustly.
     useEffect(() => {
-        // Don't do anything until we have a media stream.
         if (!myStream) {
             return;
         }
 
-        // Create the socket instance only once and store it in the ref.
         if (!socketRef.current) {
             socketRef.current = io(SOCKET_SERVER_URL, {
                 transports: ['websocket'],
                 withCredentials: true,
-                autoConnect: false // We will connect manually.
+                autoConnect: false
             });
         }
         
         const socket = socketRef.current;
-        
-        // Manually connect the socket.
-        socket.connect();
 
-        // --- Socket Event Handlers ---
+        function createPeer(userToSignal, callerID, name) {
+            const peer = new Peer({ initiator: true, trickle: false, config: peerConfig });
+            peer.addStream(myStream);
+            peer.on('signal', signal => {
+                socket.emit('sending-signal', { userToSignal, callerID, signal, name });
+            });
+            peer.on('stream', stream => {
+                setPeers(prevPeers => 
+                    prevPeers.map(p => 
+                        p.peerID === userToSignal ? { ...p, stream } : p
+                    )
+                );
+            });
+            return peer;
+        }
+
+        function addPeer(incomingSignal, callerID, name) {
+            const peer = new Peer({ initiator: false, trickle: false, config: peerConfig });
+            peer.addStream(myStream);
+            peer.on('signal', signal => {
+                socket.emit('returning-signal', { signal, callerID });
+            });
+            peer.on('stream', stream => {
+                 setPeers(prevPeers => 
+                    prevPeers.map(p => 
+                        p.peerID === callerID ? { ...p, stream } : p
+                    )
+                );
+            });
+            peer.signal(incomingSignal);
+            return peer;
+        }
+
         socket.on('connect', () => console.log('✅ Socket connected successfully:', socket.id));
         socket.on('connect_error', (err) => console.error('❌ Socket connection error:', err.message));
         
         socket.on('all-users', (otherUsers) => {
-            const newPeers = [];
+            const newPeersData = [];
             otherUsers.forEach(user => {
-                const peer = createPeer(user.id, socket.id, myStream, userName);
+                const peer = createPeer(user.id, socket.id, userName);
                 peersRef.current[user.id] = { peer, name: user.name };
-                newPeers.push({ peerID: user.id, peer, name: user.name });
+                newPeersData.push({ peerID: user.id, name: user.name, stream: null });
             });
-            setPeers(newPeers);
+            setPeers(newPeersData);
             setParticipants([{ id: socket.id, name: userName }, ...otherUsers]);
         });
 
         socket.on('user-joined', (payload) => {
             if (peersRef.current[payload.callerID]) return;
-            const peer = addPeer(payload.signal, payload.callerID, myStream, userName);
+            const peer = addPeer(payload.signal, payload.callerID, payload.name);
             peersRef.current[payload.callerID] = { peer, name: payload.name };
-            setPeers(prev => [...prev, { peerID: payload.callerID, peer, name: payload.name }]);
+            setPeers(prev => [...prev, { peerID: payload.callerID, name: payload.name, stream: null }]);
             setParticipants(prev => [...prev, { id: payload.callerID, name: payload.name }]);
         });
 
@@ -183,13 +183,11 @@ export const StudyRoom = ({ roomId, userName, onLeaveRoom }) => {
             setPomodoroState(roomState.pomodoroState || { mode: 'work', timeLeft: 25 * 60, isRunning: false });
         });
         
-        // --- Join Room ---
+        socket.connect();
         socket.emit('join-room', { roomId, userName });
 
-        // --- Cleanup Function ---
-        const currentPeers = peersRef.current;
+        const currentPeersRef = peersRef.current;
         return () => {
-            // Remove all listeners to prevent memory leaks on re-render
             socket.off('connect');
             socket.off('connect_error');
             socket.off('all-users');
@@ -197,23 +195,45 @@ export const StudyRoom = ({ roomId, userName, onLeaveRoom }) => {
             socket.off('receiving-returned-signal');
             socket.off('user-left');
             socket.off('room-state');
-            
-            // Disconnect the socket
             socket.disconnect();
-
-            // Destroy all peer connections
-            Object.values(currentPeers).forEach(p => p.peer.destroy());
+            Object.values(currentPeersRef).forEach(p => p.peer.destroy());
         };
-    }, [myStream, roomId, userName, createPeer, addPeer]);
+    }, [myStream, roomId, userName]);
 
-    // --- Control Handlers ---
-    const toggleAudio = () => { myStream?.getAudioTracks().forEach(track => { track.enabled = !track.enabled; setIsAudioMuted(!track.enabled); }); };
-    const toggleVideo = () => { if (!isScreenSharing) { myStream?.getVideoTracks().forEach(track => { track.enabled = !track.enabled; setIsVideoOn(!track.enabled); }); } };
+    const toggleAudio = () => {
+        myStream?.getAudioTracks().forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        setIsAudioMuted(prevState => !prevState);
+    };
+    const toggleVideo = () => {
+        if (!isScreenSharing) {
+            myStream?.getVideoTracks().forEach(track => {
+                track.enabled = !track.enabled;
+            });
+            setIsVideoOn(prevState => !prevState);
+        }
+    };
     const startScreenShare = () => { navigator.mediaDevices.getDisplayMedia({ cursor: true }).then(stream => { setIsScreenSharing(true); setScreenStream(stream); const screenTrack = stream.getVideoTracks()[0]; screenTrackRef.current = screenTrack; Object.values(peersRef.current).forEach(({ peer }) => { peer.replaceTrack(myStream.getVideoTracks()[0], screenTrack, myStream); }); screenTrack.onended = () => stopScreenShare(stream); }).catch(err => { if (err.name === 'NotAllowedError') { console.log('Screen share permission denied by user.'); } else { console.error("Screen share failed:", err); } setIsScreenSharing(false); setScreenStream(null); }); };
     const stopScreenShare = (streamToStop) => { const tracks = streamToStop ? streamToStop.getTracks() : screenTrackRef.current ? [screenTrackRef.current] : []; tracks.forEach(track => track.stop()); if (screenTrackRef.current && myStream) { Object.values(peersRef.current).forEach(({ peer }) => { peer.replaceTrack(screenTrackRef.current, myStream.getVideoTracks()[0], myStream); }); } setIsScreenSharing(false); setScreenStream(null); screenTrackRef.current = null; };
     const toggleLayout = () => { setLayout(prev => prev === 'tiled' ? 'whiteboard' : 'tiled'); };
-    const handleFullScreen = () => { const elem = mainStageRef.current; if (!elem) return; if (document.fullscreenElement) { document.exitFullscreen(); } else { elem.requestFullscreen().catch(err => console.error(err)); } };
     const handleCopyRoomId = () => { navigator.clipboard.writeText(roomId); alert("Room ID copied to clipboard!"); };
+    
+    // **UPDATED**: Renamed one handler to avoid confusion
+    const handleFullScreen = (elementRef) => { 
+        const elem = elementRef.current;
+        if (!elem) return; 
+        if (document.fullscreenElement) { 
+            document.exitFullscreen(); 
+        } else { 
+            elem.requestFullscreen().catch(err => console.error(err)); 
+        } 
+    };
+
+    // Find if a remote peer is screen sharing
+    const screenSharingPeer = peers.find(p => 
+        p.stream && p.stream.getVideoTracks()[0]?.getSettings().displaySurface
+    );
     
     if (mediaError) { 
         return ( <div className="h-screen bg-black text-white flex flex-col items-center justify-center p-4 gap-4"> <Icon path="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" className="w-16 h-16 text-red-500" /> <h2 className="text-2xl font-bold text-red-400">Permission Error</h2> <p className="text-center text-lg">{mediaError}</p> </div> );
@@ -234,28 +254,54 @@ export const StudyRoom = ({ roomId, userName, onLeaveRoom }) => {
 
             <div className="flex-grow flex p-4 gap-4 min-h-0 relative">
                 <main ref={mainStageRef} className="flex-grow flex flex-col bg-gray-900/50 rounded-lg border border-gray-700 relative">
-                    {screenStream ? (
+                    {/* Case 1: The local user is sharing their screen */}
+                    {isScreenSharing ? (
                         <div className="w-full h-full bg-black flex items-center justify-center rounded-lg relative group">
                             <video srcObject={screenStream} autoPlay playsInline className="w-full h-full object-contain" />
-                            <button onClick={handleFullScreen} className="absolute top-4 right-4 p-2 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* **FIX**: Pass the correct ref (mainStageRef) to the handler */}
+                            <button onClick={() => handleFullScreen(mainStageRef)} className="absolute top-4 right-4 p-2 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Icon path="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15" className="w-6 h-6"/>
                             </button>
                         </div>
-                    ) : layout === 'whiteboard' ? (
-                        <Whiteboard socket={socketRef.current} roomId={roomId} />
-                    ) : (
-                        <div className="w-full h-full p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto">
-                            <div className="relative bg-gray-800 rounded-lg aspect-video shadow-md">
-                                <video ref={myVideoRef} muted autoPlay playsInline className="w-full h-full rounded-lg object-cover" />
-                                <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1 rounded-br-lg rounded-tl-lg">
-                                    {userName} (You)
-                                </div>
+                    // Case 2: A remote user is sharing their screen
+                    ) : screenSharingPeer ? (
+                        <div className="w-full h-full bg-black flex items-center justify-center rounded-lg relative group">
+                            <video ref={remoteScreenRef} srcObject={screenSharingPeer.stream} autoPlay playsInline className="w-full h-full object-contain" />
+                            <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                                {screenSharingPeer.name} is sharing their screen
                             </div>
-                            {peers.map(({ peerID, peer, name }) => (
-                                <div key={peerID} className="relative bg-gray-800 rounded-lg aspect-video">
-                                    <Video peer={peer} name={name} />
-                                </div>
-                            ))}
+                            {/* **FIX**: Pass the correct ref (remoteScreenRef) to the handler */}
+                            <button onClick={() => handleFullScreen(remoteScreenRef)} className="absolute top-4 right-4 p-2 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Icon path="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15" className="w-6 h-6"/>
+                            </button>
+                        </div>
+                    // Case 3: No one is sharing, show the normal layout
+                    ) : (
+                        <div className="w-full h-full relative">
+                            <div className={`absolute inset-0 w-full h-full ${layout === 'whiteboard' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                                <Whiteboard socket={socketRef.current} roomId={roomId} />
+                            </div>
+                            <div className={`absolute inset-0 w-full h-full p-4 grid grid-cols-1 sm:grid-cols-2 md-grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto ${layout === 'tiled' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                               <div className="relative bg-gray-800 rounded-lg aspect-video shadow-md group">
+    <video ref={myVideoRef} muted autoPlay playsInline className="w-full h-full rounded-lg object-cover" />
+    <div className="absolute bottom-0 left-0 bg-black/60 text-white text-xs px-2 py-1 rounded-br-lg rounded-tl-lg">
+        {userName} (You)
+    </div>
+    {/* This button uses the handleFullScreen function already in StudyRoom.js */}
+    <button
+        onClick={() => handleFullScreen(myVideoRef)}
+        className="absolute top-2 right-2 p-1.5 bg-black/40 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Toggle Fullscreen"
+    >
+        <Icon path="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15" className="w-4 h-4"/>
+    </button>
+</div>
+                                {peers.map(({ peerID, name, stream }) => (
+                                    <div key={peerID} className="relative bg-gray-800 rounded-lg aspect-video">
+                                        <Video stream={stream} name={name} />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </main>
