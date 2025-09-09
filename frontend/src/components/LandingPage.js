@@ -174,7 +174,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
     {
       title: 'Aura PDF Reader',
       description: 'Go beyond static text. Our intelligent reader analyzes your documents, automatically generating summaries, key-term flashcards, and interactive Q&As. Highlight a section to get instant multi-language translations or simplify complex jargon into easy-to-understand language.',
-      image: 'https://t4.ftcdn.net/jpg/09/77/24/29/360_F_977242971_AvxHXLmc9XlpkxcMAcMX68nLWwUNE3bz.jpg',
+      image: 'https://res.cloudinary.com/jerrick/image/upload/d_642250b563292b35f27461a7.png,f_jpg,fl_progressive,q_auto,w_1024/676a7021e68307001dd5900d.png',
       iconPath: 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25',
     },
     {
@@ -297,7 +297,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
                 <p className="text-lg md:text-xl max-w-3xl mx-auto text-gray-400 font-sans" data-aos="fade-up" data-aos-delay="200">
                 AI-Powered Learning. Cinematic Results. Your academic evolution starts now.
                 </p>
-                <button onClick={onSignUpClick} className="mt-12 bg-blue-600 text-white font-bold py-4 px-10 rounded-lg text-lg transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-blue-500/50 border border-blue-400 hover:bg-blue-500" data-aos="fade-up" data-aos-delay="400">
+                <button onClick={onSignUpClick} className="mt-12 bg-black-600 text-white font-bold py-4 px-10 rounded-lg text-lg transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-black-500/50 border border-blue-400 hover:bg-grey-100" data-aos="fade-up" data-aos-delay="400">
                 Begin Your Ascent
                 </button>
             </div>
@@ -375,7 +375,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
                     <input type="text" name="name" placeholder="Your Name" value={formData.name} onChange={handleFormChange} className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans" />
                     <input type="email" name="email" placeholder="Your Email" value={formData.email} onChange={handleFormChange} className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans" />
                     <textarea placeholder="Your Message..." name="message" value={formData.message} onChange={handleFormChange} rows="5" className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans"></textarea>
-                    <button type="submit" className="w-full bg-blue-600 text-white font-bold py-3 px-10 rounded-lg text-lg transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-blue-500/50 border border-blue-400 hover:bg-blue-500 disabled:opacity-50 disabled:scale-100" disabled={formSubmitted}>
+                    <button type="submit" className="w-full bg-black-600 text-white font-bold py-3 px-10 rounded-lg text-lg transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-blue-500/50 border border-blue-400 hover:bg-black-500 disabled:opacity-50 disabled:scale-100" disabled={formSubmitted}>
                       {formSubmitted ? 'Details Received' : 'Send'}
                     </button>
                 </form>

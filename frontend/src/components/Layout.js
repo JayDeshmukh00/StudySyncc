@@ -123,23 +123,37 @@ export const Chatbot = ({ currentView, onQuickAction }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    useEffect(() => {
-        if (!isOpen || messages.length <= 1 || activeTab !== 'chat') return;
-        const currentId = conversationIdRef.current;
-        if (!currentId) return;
-        const firstUserMessage = messages.find(m => m.role === 'user');
-        const currentTitle = firstUserMessage ? firstUserMessage.content.substring(0, 40) + '...' : 'New Chat';
-        const existingChatIndex = history.findIndex(chat => chat.id === currentId);
-        let newHistory = [...history];
-        const newChatEntry = { id: currentId, title: currentTitle, messages: messages };
-        if (existingChatIndex !== -1) {
-            newHistory[existingChatIndex] = newChatEntry;
-        } else {
-            newHistory.push(newChatEntry);
-        }
-        setHistory(newHistory);
-        localStorage.setItem('chatHistory', JSON.stringify(newHistory));
-    }, [messages, history, isOpen, activeTab]);
+   // The corrected useEffect for your Chatbot component
+useEffect(() => {
+    if (!isOpen || messages.length <= 1 || activeTab !== 'chat') return;
+
+    // --- FIX: This check prevents the infinite loop on error ---
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.content.startsWith('Sorry, I ran into an error.')) {
+        return; // Don't save history if the chat ended in an error
+    }
+    // --- End of FIX ---
+
+    const currentId = conversationIdRef.current;
+    if (!currentId) return;
+
+    const firstUserMessage = messages.find(m => m.role === 'user');
+    const currentTitle = firstUserMessage ? firstUserMessage.content.substring(0, 40) + '...' : 'New Chat';
+
+    const existingChatIndex = history.findIndex(chat => chat.id === currentId);
+
+    let newHistory = [...history];
+    const newChatEntry = { id: currentId, title: currentTitle, messages: messages };
+
+    if (existingChatIndex !== -1) {
+        newHistory[existingChatIndex] = newChatEntry;
+    } else {
+        newHistory.unshift(newChatEntry); // Use unshift to add to the beginning for easier sorting later
+    }
+
+    setHistory(newHistory);
+    localStorage.setItem('chatHistory', JSON.stringify(newHistory));
+}, [messages, history, isOpen, activeTab]);
 
     const handleListen = useCallback(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
