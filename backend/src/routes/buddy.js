@@ -44,7 +44,7 @@ const getGroqCompletion = async (systemPrompt, userText) => {
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userText },
         ],
-        model: 'llama3-70b-8192',
+        model: 'llama-3.3-70b-versatile',
         temperature: 0.5,
     });
     return chatCompletion.choices[0]?.message?.content || '';
