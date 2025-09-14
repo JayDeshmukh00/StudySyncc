@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 // It's recommended to include the AOS library's CSS in your main project file (e.g., index.css or App.css)
-// For this self-contained component, we'll assume it's loaded globally.
-// You can add this to your public/index.html: <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
-// And this before your closing </body> tag: <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+// You can add this to your public/index.html:
+// <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
 
 // Helper component for SVG Icons
-const Icon = ({ path, className = 'w-6 h-6' }) => (
+const Icon = ({ path, className = 'w-6 h-6', ...props }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
@@ -14,6 +13,7 @@ const Icon = ({ path, className = 'w-6 h-6' }) => (
     strokeWidth={1.5}
     stroke="currentColor"
     className={className}
+    {...props}
   >
     <path strokeLinecap="round" strokeLinejoin="round" d={path} />
   </svg>
@@ -22,7 +22,7 @@ const Icon = ({ path, className = 'w-6 h-6' }) => (
 // The main Landing Page Component, redesigned for a cinematic feel.
 export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
   const canvasRef = useRef(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // State for the new mobile-first menu
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
 
@@ -33,7 +33,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
       window.AOS.init({
         duration: 1000,
         once: true,
-        offset: 100,
+        offset: 50, // Reduced offset for earlier trigger
       });
     }
 
@@ -158,7 +158,6 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
     }
   };
   
-  // NEW: Function to handle menu link clicks and close the menu
   const handleMenuClick = (e, targetId) => {
     e.preventDefault();
     setIsMenuOpen(false);
@@ -167,8 +166,14 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
   
   const features = [
     {
+      title: 'The AI Study Planner',
+      description: "The core of Study Sync. Upload your syllabus, textbook, or research papers, and our AI constructs a dynamic study plan tailored to your deadlines. It deconstructs complex topics into manageable sessions and schedules reviews to maximize retention. Stop guessing what to study next; let our AI build your path to mastery.",
+      image: 'https://files.mymap.ai/public/aigc/ffjsklmsmtgnqmr.png',
+      iconPath: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    },
+    {
       title: 'AI Buddy',
-      description: "Your personal AI tutor, available 24/7. Ask complex questions, get step-by-step explanations, and receive instant feedback to master any subject. AI Buddy adapts to your learning style, offering customized examples and practice problems to ensure you truly understand the material, not just memorize it.",
+      description: "Your personal AI tutor, available 24/7. Ask complex questions, get step-by-step explanations, and receive instant feedback. AI Buddy adapts to your learning style, offering customized examples and practice problems to ensure you truly understand the material, not just memorize it.",
       image: 'https://static.liveperson.com/static-assets/2023/08/31151914/Blog_Conversational-AI_BotHoldingWorld.jpg',
       iconPath: 'M9.813 15.904L9 15l.813-.904L9.937 15l-.124.904zM12 21a9 9 0 100-18 9 9 0 000 18z',
     },
@@ -187,6 +192,9 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
   ];
 
   const styles = `
+    html {
+        scroll-behavior: smooth;
+    }
     body {
       background-color: #000000;
       color: #e5e7eb;
@@ -198,18 +206,20 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
       background-color: #000000;
     }
+    /* FIX: Corrected z-index for proper layering */
     #particle-canvas {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: 11;
+      z-index: 0;
     }
     .content-wrapper {
         position: relative;
-        z-index: 2;
-        background: radial-gradient(ellipse at 50% -20%, rgba(10, 5, 40, 0.3) 0%, rgba(0,0,0,0.9) 70%, #000 100%);
+        z-index: 1; /* Sits above the canvas */
+        /* MODIFICATION: Reduced opacity for more canvas visibility */
+        background: radial-gradient(ellipse at 50% -20%, rgba(10, 5, 40, 0.15) 0%, rgba(0,0,0,0.8) 70%, #000 100%);
     }
     .cinematic-title {
       font-family: 'Rajdhani', sans-serif;
@@ -233,8 +243,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
     .section-divider {
         height: 1px;
         background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
-        /* MODIFICATION: Reduced vertical margin */
-        margin: 5rem auto;
+        margin: 4rem auto; /* Reduced margin for tighter layout */
         width: 50%;
     }
     .image-container {
@@ -252,7 +261,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         transform-style: preserve-3d;
     }
     .feature-card:hover {
-        transform: rotateY(5deg) scale(1.02);
+        transform: rotateY(3deg) scale(1.02);
     }
   `;
 
@@ -265,7 +274,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
         <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet" />
 
-        {/* NEW: Modern Floating Menu Navigation */}
+        {/* Floating Menu Navigation */}
         <div className="absolute top-4 right-4 z-50">
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)} 
@@ -276,18 +285,18 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
           </button>
         </div>
 
-        {/* NEW: Fixed Logo at top-left corner */}
-        <div className="absolute top-4 left-4 z-50 flex items-center space-x-4">
-          <img src="/sslogo.png" alt="Logo" className="w-20 h-20 rounded-full shadow-lg" />
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">StudySync</h1>
+        {/* Fixed Logo */}
+        <div className="absolute top-4 left-4 z-50 flex items-center space-x-3">
+            {/* Note: Ensure 'sslogo.png' is in your /public directory */}
+          <img src="/sslogo.png" alt="StudySync Logo" className="w-16 h-16 rounded-full shadow-lg" />
+          <h1 className="text-2xl font-bold text-white cinematic-title">StudySync</h1>
         </div>
 
-        {/* NEW: Full-screen Menu Overlay */}
+        {/* Full-screen Menu Overlay */}
         <div className={`fixed inset-0 z-40 bg-black/80 backdrop-blur-lg flex flex-col items-center justify-center transition-opacity duration-500 ${isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
             <nav className="flex flex-col items-center justify-center text-center space-y-8">
-                <a href="#ai-planner" onClick={(e) => handleMenuClick(e, 'ai-planner')} className="text-gray-300 hover:text-blue-300 transition-colors duration-300 text-3xl font-bold cinematic-title">AI Planner</a>
-                <a href="#features" onClick={(e) => handleMenuClick(e, 'features')} className="text-gray-300 hover:text-blue-300 transition-colors duration-300 text-3xl font-bold cinematic-title">Features</a>
-                <a href="#contact" onClick={(e) => handleMenuClick(e, 'contact')} className="text-gray-300 hover:text-blue-300 transition-colors duration-300 text-3xl font-bold cinematic-title">Contact</a>
+              <a href="#features" onClick={(e) => handleMenuClick(e, 'features')} className="text-gray-300 hover:text-blue-300 transition-colors duration-300 text-3xl font-bold cinematic-title">Features</a>
+              <a href="#contact" onClick={(e) => handleMenuClick(e, 'contact')} className="text-gray-300 hover:text-blue-300 transition-colors duration-300 text-3xl font-bold cinematic-title">Contact</a>
             </nav>
             <div className="mt-16 flex flex-col sm:flex-row items-center space-y-6 sm:space-y-0 sm:space-x-6">
                 <button onClick={onLoginClick} className="text-white font-semibold py-3 px-8 rounded-lg transition-all text-xl hover:bg-white/10 duration-300">Login</button>
@@ -297,52 +306,30 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
 
         <section className="relative min-h-screen flex items-center justify-center text-center overflow-hidden px-4">
           <div 
-  className="absolute inset-0 z-10" 
-  style={{ 
-    backgroundImage: "url('/backgroundimg.jpg')", 
-    backgroundSize: 'cover', 
-    backgroundPosition: 'center', 
-    opacity: 0.2 
-  }}
-></div>
-            <div className="relative z-20 p-6">
-                <h1 className="text-6xl md:text-8xl lg:text-9xl font-black uppercase cinematic-title mb-6" data-aos="fade-down">
-
-                Study Sync
-                </h1>
-                <p className="text-lg md:text-xl max-w-3xl mx-auto text-gray-400 font-sans" data-aos="fade-up" data-aos-delay="200">
-                AI-Powered Learning. Cinematic Results. Your academic evolution starts now.
-                </p>
-                <button onClick={onSignUpClick} className="mt-12 bg-black-600 text-white font-bold py-4 px-10 rounded-lg text-lg transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-black-500/50 border border-blue-400 hover:bg-grey-100" data-aos="fade-up" data-aos-delay="400">
-                Begin Your Ascent
-                </button>
-            </div>
-        </section>
-        
-        {/* MODIFICATION: Reduced vertical padding */}
-        <section id="ai-planner" className="py-16 sm:py-24 relative z-10 px-6">
-          <div className="container mx-auto">
-            <div className="grid md:grid-cols-2 gap-x-20 gap-y-12 items-center">
-              <div data-aos="fade-right">
-                <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">The AI Study Planner</h2>
-                <p className="text-lg leading-relaxed text-gray-400 font-sans mb-4">The core of Study Sync. Upload your entire syllabus, textbook, or research papers, and our advanced AI engine constructs a dynamic, day-by-day study plan tailored to your deadlines and learning pace. It deconstructs complex topics into manageable sessions, identifies key concepts, and schedules review periods to maximize retention.</p>
-                <p className="text-lg leading-relaxed text-gray-400 font-sans">Stop guessing what to study next. Let our AI build the most efficient path to mastery for you.</p>
-              </div>
-              <div className="image-container relative" data-aos="zoom-in-left">
-                <div className="tech-glow-border rounded-2xl p-1.5 transition-all duration-300 hover:p-2 hover:border-blue-400">
-                  <img src="https://files.mymap.ai/public/aigc/ffjsklmsmtgnqmr.png" alt="AI Study Planner" className="rounded-xl object-cover w-full h-auto aspect-video" onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/600x400/000000/3b82f6?text=Connection+Lost'; }} />
-                </div>
-              </div>
-            </div>
+            className="absolute inset-0 z-0" 
+            style={{ 
+              backgroundImage: "url('/backgroundimg.jpg')", // Note: Ensure 'backgroundimg.jpg' is in your /public directory
+              backgroundSize: 'cover', 
+              backgroundPosition: 'center', 
+              opacity: 0.1 // MODIFICATION: Reduced opacity for more canvas visibility
+            }}
+          ></div>
+          <div className="relative z-10 p-6">
+            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black uppercase cinematic-title mb-6" data-aos="fade-down">
+              Study Sync
+            </h1>
+            <p className="text-lg md:text-xl max-w-3xl mx-auto text-gray-400 font-sans" data-aos="fade-up" data-aos-delay="200">
+              AI-Powered Learning. Cinematic Results. Your academic evolution starts now.
+            </p>
+            <button onClick={onSignUpClick} className="mt-12 bg-gray-900/50 text-white font-bold py-4 px-10 rounded-lg text-lg transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-blue-500/20 border border-blue-400 hover:bg-white/10" data-aos="fade-up" data-aos-delay="400">
+              Begin Your Ascent
+            </button>
           </div>
         </section>
-
-        <div className="section-divider"></div>
         
-        {/* MODIFICATION: Reduced vertical padding */}
-        <section id="features" className="py-16 sm:py-24 relative z-10 overflow-hidden px-6">
+        {/* Unified Features Section */}
+        <section id="features" className="py-20 md:py-28 relative z-10 overflow-hidden px-6">
           <div className="container mx-auto">
-            {/* MODIFICATION: Reduced margin-bottom */}
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-bold text-white mb-4" data-aos="zoom-in">
                 The Arsenal
@@ -351,8 +338,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
                 A suite of intelligent tools forged in the future of learning.
               </p>
             </div>
-            {/* MODIFICATION: Reduced space between feature cards */}
-            <div className="space-y-20">
+            <div className="space-y-24">
               {features.map((feature, index) => (
                 <div key={index} className="grid md:grid-cols-2 gap-x-20 gap-y-12 items-center feature-card">
                   <div className={`order-2 ${index % 2 === 0 ? 'md:order-1' : 'md:order-2'}`} data-aos={index % 2 === 0 ? 'fade-right' : 'fade-left'}>
@@ -364,7 +350,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
                   </div>
                   <div className={`order-1 ${index % 2 === 0 ? 'md:order-2' : 'md:order-1'}`} data-aos="zoom-in-up">
                     <div className="image-container relative tech-glow-border rounded-2xl p-1.5 transition-all duration-300 hover:p-2 hover:border-blue-400">
-                      <img src={feature.image} alt={feature.title} className="rounded-xl object-cover w-full h-auto aspect-video" onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/600x400/000000/3b82f6?text=Connection+Lost'; }} />
+                      <img src={feature.image} alt={feature.title} className="rounded-xl object-cover w-full h-auto aspect-video" onError={(e) => { e.target.onerror = null; e.target.src='https://placehold.co/600x400/000000/3b82f6?text=Image+Not+Found'; }} />
                     </div>
                   </div>
                 </div>
@@ -375,23 +361,22 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
 
         <div className="section-divider"></div>
         
-        {/* MODIFICATION: Reduced vertical padding */}
-        <section id="contact" className="py-16 sm:py-24 relative z-10 px-6">
+        <section id="contact" className="py-20 md:py-28 relative z-10 px-6">
           <div className="container mx-auto max-w-6xl">
             <div className="bg-black/40 tech-glow-border rounded-2xl p-8 md:p-12 grid md:grid-cols-2 gap-12 items-center" data-aos="fade-up">
                 <div className="text-center md:text-left">
                     <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Get In Touch</h2>
                     <p className="text-lg text-gray-400 mb-8 font-sans">Connect with Study Sync. Shape the future of learning. Direct channel open for inquiries and collaborations.</p>
-                    <div className="space-y-4 text-left">
-                        <p className="flex items-center"><Icon path="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" className="w-6 h-6 mr-3 text-blue-400"/> contact@studysync.ai</p>
-                        <p className="flex items-center"><Icon path="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" className="w-6 h-6 mr-3 text-blue-400"/><Icon path="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" className="w-6 h-6 mr-3 text-blue-400" style={{marginLeft: '-1.5rem'}}/> Sector 5, Cybernetic Hub, Neo-Genesis</p>
+                    <div className="space-y-4 text-left inline-block">
+                        <p className="flex items-center"><Icon path="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" className="w-6 h-6 mr-3 text-blue-400 shrink-0"/> contact@studysync.ai</p>
+                        <p className="flex items-start"><Icon path="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" className="w-6 h-6 mr-3 text-blue-400 shrink-0" /><Icon path="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" className="w-6 h-6 mr-3 text-blue-400 shrink-0" style={{marginLeft: '-1.5rem'}}/> Sector 5, Cybernetic Hub, Neo-Genesis</p>
                     </div>
                 </div>
                 <form className="space-y-6" onSubmit={handleFormSubmit}>
-                    <input type="text" name="name" placeholder="Your Name" value={formData.name} onChange={handleFormChange} className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans" />
-                    <input type="email" name="email" placeholder="Your Email" value={formData.email} onChange={handleFormChange} className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans" />
-                    <textarea placeholder="Your Message..." name="message" value={formData.message} onChange={handleFormChange} rows="5" className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans"></textarea>
-                    <button type="submit" className="w-full bg-black-600 text-white font-bold py-3 px-10 rounded-lg text-lg transform hover:scale-105 transition-all duration-300 shadow-2xl shadow-blue-500/50 border border-blue-400 hover:bg-black-500 disabled:opacity-50 disabled:scale-100" disabled={formSubmitted}>
+                    <input type="text" name="name" placeholder="Your Name" value={formData.name} onChange={handleFormChange} required className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans" />
+                    <input type="email" name="email" placeholder="Your Email" value={formData.email} onChange={handleFormChange} required className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans" />
+                    <textarea placeholder="Your Message..." name="message" value={formData.message} onChange={handleFormChange} required rows="5" className="w-full bg-gray-900/50 border-2 border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-sans"></textarea>
+                    <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-10 rounded-lg text-lg transform hover:scale-105 transition-all duration-300 shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:scale-100 disabled:bg-blue-800" disabled={formSubmitted}>
                       {formSubmitted ? 'Details Received' : 'Send'}
                     </button>
                 </form>
@@ -401,7 +386,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
 
         <footer className="border-t border-blue-800/20 text-center py-8 relative z-10 mt-16">
           <div className="container mx-auto px-6">
-            <p className="text-gray-400 font-sans">&copy; 2025 Study Sync. All Rights Reserved.</p>
+            <p className="text-gray-400 font-sans">&copy; {new Date().getFullYear()} Study Sync. All Rights Reserved.</p>
             <p className="text-sm text-gray-600 mt-2 font-sans">Forged in the Future.</p>
           </div>
         </footer>
