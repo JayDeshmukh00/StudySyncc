@@ -1,8 +1,19 @@
-// src/components/FlashcardsPage.js
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Icon } from './Icon';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// --- FIX: Define Icon component directly to resolve import error ---
+const Icon = ({ path, className = 'w-6 h-6' }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={1.5}
+        stroke="currentColor"
+        className={className}
+    >
+        <path strokeLinecap="round" strokeLinejoin="round" d={path} />
+    </svg>
+);
 
 // The Flashcard sub-component (no changes here)
 const Flashcard = ({ card, isFlipped, onFlip }) => {
@@ -39,6 +50,8 @@ const Flashcard = ({ card, isFlipped, onFlip }) => {
 export const FlashcardsPage = ({ onBack }) => {
     const [sets, setSets] = useState([]);
     const [topic, setTopic] = useState('');
+    const [file, setFile] = useState(null); 
+    const fileInputRef = useRef(null); 
     const [selectedSet, setSelectedSet] = useState(null);
     const [shuffledCards, setShuffledCards] = useState([]);
     const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -49,7 +62,6 @@ export const FlashcardsPage = ({ onBack }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // (All the useEffect and handler functions are the same - no changes needed there)
     useEffect(() => {
         const fetchSets = async () => {
             try {
@@ -61,66 +73,51 @@ export const FlashcardsPage = ({ onBack }) => {
         fetchSets();
     }, []);
 
-    const shuffleArray = (array) => [...array].sort(() => Math.random() - 0.5);
-
-    const handleSelectSet = (set, restart = false) => {
-        const cardsToStudy = restart && reviewLaterCards.length > 0 ? [...reviewLaterCards] : shuffleArray(set.cards);
-        setSelectedSet(set);
-        setShuffledCards(cardsToStudy);
-        setCurrentCardIndex(0);
-        setIsFlipped(false);
-        setKnownCards([]);
-        setReviewLaterCards([]);
-        setSessionFinished(false);
+    const handleFileChange = (e) => {
+        const selectedFile = e.target.files[0];
+        if (selectedFile && selectedFile.type === "application/pdf") {
+            setFile(selectedFile);
+            setTopic(selectedFile.name.replace(/\.pdf$/i, '')); // Pre-fill topic
+            setError('');
+        } else {
+            setError('Please select a valid PDF file.');
+        }
     };
 
-    const handleNextCard = useCallback((isKnown) => {
-        const currentCard = shuffledCards[currentCardIndex];
-        if (isKnown) setKnownCards(prev => [...prev, currentCard]);
-        else setReviewLaterCards(prev => [...prev, currentCard]);
-        
-        setIsFlipped(false);
-        if (currentCardIndex < shuffledCards.length - 1) {
-            setCurrentCardIndex(prev => prev + 1);
-        } else {
-            setSessionFinished(true);
-        }
-    }, [currentCardIndex, shuffledCards]);
-
-    const handlePrevCard = useCallback(() => {
-        if (currentCardIndex > 0) {
-            setIsFlipped(false);
-            const prevCard = shuffledCards[currentCardIndex - 1];
-            setKnownCards(prev => prev.filter(c => c._id !== prevCard._id));
-            setReviewLaterCards(prev => prev.filter(c => c._id !== prevCard._id));
-            setCurrentCardIndex(prev => prev - 1);
-        }
-    }, [currentCardIndex, shuffledCards]);
-
-    const handleKeyDown = useCallback((e) => {
-        if (!selectedSet || sessionFinished) return;
-        if (e.key === 'ArrowRight') handleNextCard(true);
-        if (e.key === 'ArrowLeft') handlePrevCard();
-        if (e.key === ' ') { e.preventDefault(); setIsFlipped(f => !f); }
-    }, [selectedSet, sessionFinished, handleNextCard, handlePrevCard]);
-
-    useEffect(() => {
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [handleKeyDown]);
-    
     const handleGenerate = async (e) => {
         e.preventDefault();
-        if (!topic.trim() || loading) return;
-        setLoading(true); setError('');
+        if ((!topic.trim() && !file) || loading) return;
+        
+        setLoading(true);
+        setError('');
+
         try {
-            const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/generate-flashcards`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') }, body: JSON.stringify({ topic }) });
-            if (!res.ok) { const err = await res.json(); throw new Error(err.msg || 'Failed to generate.'); }
+            const formData = new FormData();
+            formData.append('topic', topic);
+            if (file) {
+                formData.append('pdf', file);
+            }
+
+            const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/generate-flashcards`, {
+                method: 'POST',
+                headers: { 'x-auth-token': localStorage.getItem('token') },
+                body: formData,
+            });
+            
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.msg || 'Failed to generate.');
+            }
+            
             const newSet = await res.json();
             setSets([newSet, ...sets]);
             setTopic('');
-        } catch (err) { setError(err.message); } 
-        finally { setLoading(false); }
+            setFile(null);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
     
     const handleDelete = async (setId) => {
@@ -131,12 +128,52 @@ export const FlashcardsPage = ({ onBack }) => {
         } catch (err) { setError(err.message); }
     };
 
+    const shuffleArray = (array) => [...array].sort(() => Math.random() - 0.5);
+    const handleSelectSet = (set, restart = false) => {
+        const cardsToStudy = restart && reviewLaterCards.length > 0 ? [...reviewLaterCards] : shuffleArray(set.cards);
+        setSelectedSet(set);
+        setShuffledCards(cardsToStudy);
+        setCurrentCardIndex(0);
+        setIsFlipped(false);
+        setKnownCards([]);
+        setReviewLaterCards([]);
+        setSessionFinished(false);
+    };
+    const handleNextCard = useCallback((isKnown) => {
+        const currentCard = shuffledCards[currentCardIndex];
+        if (isKnown) setKnownCards(prev => [...prev, currentCard]);
+        else setReviewLaterCards(prev => [...prev, currentCard]);
+        setIsFlipped(false);
+        if (currentCardIndex < shuffledCards.length - 1) {
+            setCurrentCardIndex(prev => prev + 1);
+        } else {
+            setSessionFinished(true);
+        }
+    }, [currentCardIndex, shuffledCards]);
+    const handlePrevCard = useCallback(() => {
+        if (currentCardIndex > 0) {
+            setIsFlipped(false);
+            const prevCard = shuffledCards[currentCardIndex - 1];
+            setKnownCards(prev => prev.filter(c => c._id !== prevCard._id));
+            setReviewLaterCards(prev => prev.filter(c => c._id !== prevCard._id));
+            setCurrentCardIndex(prev => prev - 1);
+        }
+    }, [currentCardIndex, shuffledCards]);
+    const handleKeyDown = useCallback((e) => {
+        if (!selectedSet || sessionFinished) return;
+        if (e.key === 'ArrowRight') handleNextCard(true);
+        if (e.key === 'ArrowLeft') handlePrevCard();
+        if (e.key === ' ') { e.preventDefault(); setIsFlipped(f => !f); }
+    }, [selectedSet, sessionFinished, handleNextCard, handlePrevCard]);
+    useEffect(() => {
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleKeyDown]);
     const card = useMemo(() => shuffledCards[currentCardIndex], [currentCardIndex, shuffledCards]);
     const progress = useMemo(() => (shuffledCards.length > 0 ? ((currentCardIndex) / shuffledCards.length) * 100 : 0), [currentCardIndex, shuffledCards]);
 
     // --- RENDER LOGIC ---
 
-    // **FIXED HERE**: The main view with the list of flashcard sets and generator form
     if (!selectedSet) {
         return (
             <div className="animate-fade-in">
@@ -146,26 +183,28 @@ export const FlashcardsPage = ({ onBack }) => {
                 <div className="bg-black/50 backdrop-blur-sm p-8 rounded-lg shadow-2xl border border-blue-800/30">
                     <h2 className="text-3xl font-bold mb-4">AI-Powered Flashcards</h2>
                     
-                    {/* Form to generate new flashcards */}
                     <form onSubmit={handleGenerate} className="mb-8">
-                        <label htmlFor="topic" className="block text-lg font-medium text-gray-300 mb-2">Enter a topic to generate flashcards:</label>
+                        <label htmlFor="topic" className="block text-lg font-medium text-gray-300 mb-2">Enter a topic, or upload a PDF:</label>
                         <div className="flex gap-4">
-                            <input
-                                id="topic"
-                                type="text"
-                                value={topic}
-                                onChange={(e) => setTopic(e.target.value)}
-                                placeholder="e.g., Object-Oriented Programming"
-                                className="flex-grow bg-gray-900/50 text-white rounded-lg p-3 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                            />
+                            <input id="topic" type="text" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g., Object-Oriented Programming" className="flex-grow bg-gray-900/50 text-white rounded-lg p-3 border border-gray-600 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                            <input type="file" accept="application/pdf" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+                            <button type="button" onClick={() => fileInputRef.current.click()} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg flex items-center gap-2">
+                                <Icon path="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" className="w-5 h-5" />
+                                Upload PDF
+                            </button>
                             <button type="submit" disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg disabled:bg-gray-500 disabled:cursor-not-allowed">
                                 {loading ? 'Generating...' : 'Generate'}
                             </button>
                         </div>
+                        {file && (
+                            <div className="mt-4 bg-gray-800/50 p-3 rounded-lg flex items-center justify-between">
+                                <p className="text-gray-300">Selected file: <span className="font-semibold text-white">{file.name}</span></p>
+                                <button onClick={() => { setFile(null); setTopic(''); }} className="text-red-400 hover:text-red-300 text-xs font-bold">REMOVE</button>
+                            </div>
+                        )}
                         {error && <p className="text-red-400 mt-2">{error}</p>}
                     </form>
 
-                    {/* List of existing flashcard sets */}
                     <h3 className="text-2xl font-bold mb-4 border-t border-gray-700 pt-6">My Flashcard Sets</h3>
                     <div className="space-y-4">
                         {sets.length > 0 ? sets.map(set => (
@@ -196,11 +235,9 @@ export const FlashcardsPage = ({ onBack }) => {
             </button>
             <div className="bg-black/50 p-8 rounded-2xl shadow-2xl border border-gray-800">
                 <h2 className="text-3xl font-bold mb-2 text-center">{selectedSet.topic}</h2>
-                {/* Progress Bar */}
                 <div className="w-full bg-gray-700 rounded-full h-2.5 mb-6">
                     <motion.div className="bg-cyan-400 h-2.5 rounded-full" style={{ width: `${progress}%` }}></motion.div>
                 </div>
-
                 <AnimatePresence mode="wait">
                     {!sessionFinished ? (
                         <motion.div
@@ -224,7 +261,6 @@ export const FlashcardsPage = ({ onBack }) => {
                         </motion.div>
                     )}
                 </AnimatePresence>
-
                 {!sessionFinished && (
                     <div className="flex justify-around items-center mt-8">
                         <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => handleNextCard(false)} className="bg-red-500/80 hover:bg-red-500 text-white font-bold py-3 px-8 rounded-lg">Review Later</motion.button>
@@ -236,3 +272,4 @@ export const FlashcardsPage = ({ onBack }) => {
         </motion.div>
     );
 };
+

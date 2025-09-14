@@ -265,7 +265,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@700&family=Inter:wght@400;700&display=swap" rel="stylesheet" />
 
         {/* NEW: Modern Floating Menu Navigation */}
-        <div className="fixed top-4 right-4 z-50">
+        <div className="absolute top-4 right-4 z-50">
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)} 
             className="p-3 bg-black/60 backdrop-blur-md tech-glow-border rounded-full text-white hover:text-blue-300 transition-all duration-300"
@@ -273,6 +273,12 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
           >
             {isMenuOpen ? <Icon path="M6 18L18 6M6 6l12 12" className="w-7 h-7" /> : <Icon path="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" className="w-7 h-7" />}
           </button>
+        </div>
+
+        {/* NEW: Fixed Logo at top-left corner */}
+        <div className="absolute top-4 left-4 z-50 flex items-center space-x-4">
+          <img src="/sslogo.png" alt="Logo" className="w-20 h-20 rounded-full shadow-lg" />
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">StudySync</h1>
         </div>
 
         {/* NEW: Full-screen Menu Overlay */}
@@ -289,9 +295,10 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         </div>
 
         <section className="relative min-h-screen flex items-center justify-center text-center overflow-hidden px-4">
-            <div className="absolute inset-0 z-10" style={{ backgroundImage: `url('https://s2w.inc/files/contents/c9856ee8-6d00-45bc-9c72-855ed6d800fb')`, backgroundSize: 'cover', backgroundPosition: 'center', opacity:0.1 }}></div>
+            <div className="absolute inset-0 z-10" style={{ backgroundImage: `url('https://s2w.inc/files/contents/c9856ee8-6d00-45bc-9c72-855ed6d800fb')`, backgroundSize: 'cover', backgroundPosition: 'center', opacity:0.5 }}></div>
             <div className="relative z-20 p-6">
                 <h1 className="text-6xl md:text-8xl lg:text-9xl font-black uppercase cinematic-title mb-6" data-aos="fade-down">
+
                 Study Sync
                 </h1>
                 <p className="text-lg md:text-xl max-w-3xl mx-auto text-gray-400 font-sans" data-aos="fade-up" data-aos-delay="200">

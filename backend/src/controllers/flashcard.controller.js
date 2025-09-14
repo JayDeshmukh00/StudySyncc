@@ -1,4 +1,3 @@
-// src/controllers/flashcard.controller.js
 const FlashcardSet = require('../models/flashcardSet.model');
 const Groq = require('groq-sdk');
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -20,11 +19,14 @@ exports.generateFlashcards = async (req, res) => {
         let topic;
         let generationContext;
 
+        // --- FEATURE: Handle PDF Upload ---
+        // If a file is uploaded, parse it and use its content.
         if (req.file) {
             console.log('Generating flashcards from uploaded PDF...');
             const pdfBuffer = req.file.buffer;
             const data = await pdf(pdfBuffer);
             generationContext = data.text;
+            // Use the provided topic or derive it from the filename
             topic = req.body.topic || req.file.originalname.replace(/\.pdf$/i, '');
         } else if (req.body.topic) {
             console.log('Generating flashcards from topic string...');
@@ -34,15 +36,15 @@ exports.generateFlashcards = async (req, res) => {
             return res.status(400).json({ msg: 'Please provide a topic or upload a PDF.' });
         }
 
+        // Truncate context to avoid exceeding model limits
         const maxChars = 8000;
         const truncatedContext = generationContext.substring(0, maxChars);
 
-        const prompt = `Based on the following text, generate a set of 10-15 key flashcards for the topic "${topic}". Each card must have a "term", "definition", and a concise "example". Return a single JSON object with a "topic" string and a "cards" array. Text to analyze: """${truncatedContext}"""`;
+        const prompt = `Based on the following text, generate a set of 10-15 key flashcards for the topic "${topic}". Each card must have a "term", a "definition", and a concise "example". Return a single JSON object with a "topic" string and a "cards" array. Text to analyze: """${truncatedContext}"""`;
         
         const completion = await groq.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
-            // --- THIS IS THE ONLY CHANGE ---
-            model: 'llama-3.3-70b-versatile', // Updated to a current, high-performance model
+            model: 'llama-3.3-70b-versatile',
             response_format: { type: 'json_object' },
         });
 

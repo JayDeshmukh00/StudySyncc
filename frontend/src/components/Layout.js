@@ -29,7 +29,10 @@ export const Header = ({ onToggleTheme, currentTheme, onHomeClick, onLogout, use
         <header className="bg-white/30 dark:bg-black/50 backdrop-blur-lg shadow-lg dark:shadow-blue-900/20 sticky top-0 z-40 border-b border-gray-200 dark:border-gray-800">
             <div className="container mx-auto px-4 py-4 flex justify-between items-center">
                 <div className="flex items-center space-x-3 cursor-pointer" onClick={onHomeClick}>
-                    <Icon path="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" className="w-8 h-8 text-blue-500" />
+                   <img src="/sslogo.png" alt="Logo" className="w-10 h-10 rounded-full" />
+                    
+                    
+                    {/* <Icon path="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" className="w-8 h-8 text-blue-500" /> */}
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white">StudySync</h1>
                 </div>
                 {user && (

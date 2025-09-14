@@ -15,6 +15,11 @@ export const AuthForm = ({ isLogin, onSubmit, onSwitch, error }) => {
     return (
       <div className="min-h-screen w-screen flex items-center justify-center p-4">
         <div className="bg-white/10 dark:bg-black/50 backdrop-blur-sm p-6 sm:p-8 rounded-xl shadow-2xl shadow-blue-900/20 border border-blue-800/30 w-full max-w-xs sm:max-w-sm md:max-w-md">
+          {/* Logo and Title at top of card */}
+          <div className="flex items-center space-x-4 justify-center mb-6">
+            <img src="/sslogo.png" alt="Logo" className="w-12 h-12 rounded-full shadow-lg" />
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">StudySync</h1>
+          </div>
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8">{isLogin ? 'Login' : 'Sign Up'}</h2>
           <form onSubmit={handleSubmit}>
             {!isLogin && (
