@@ -67,10 +67,13 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         this.color = color;
       }
       draw() {
+        ctx.shadowColor = 'rgba(59, 130, 246, 0.5)';
+        ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
         ctx.fillStyle = this.color;
         ctx.fill();
+        ctx.shadowBlur = 0;
       }
       update() {
         if (this.x > canvas.width || this.x < 0) { this.directionX = -this.directionX; }
@@ -92,15 +95,14 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
 
     function initNodes() {
       nodes = [];
-      let numberOfNodes = (canvas.width * canvas.height) / 20000;
+      let numberOfNodes = (canvas.width * canvas.height) / 15000;
       for (let i = 0; i < numberOfNodes; i++) {
-        let size = (Math.random() * 2) + 1;
+        let size = (Math.random() * 2) + 2;
         let x = Math.random() * canvas.width;
         let y = Math.random() * canvas.height;
         let directionX = (Math.random() * 0.4) - 0.2;
         let directionY = (Math.random() * 0.4) - 0.2;
-        // MODIFICATION: Reduced opacity for a darker, subtler node color
-        let color = `rgba(59, 130, 246, ${Math.random() * 0.2 + 0.05})`;
+        let color = `rgba(59, 130, 246, ${Math.random() * 0.3 + 0.3})`;
         nodes.push(new Node(x, y, directionX, directionY, size, color));
       }
     }
@@ -113,8 +115,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
                              + ((nodes[a].y - nodes[b].y) * (nodes[a].y - nodes[b].y));
                 if (distance < (canvas.width / 7) * (canvas.height / 7)) {
                     opacityValue = 1 - (distance / 20000);
-                    // MODIFICATION: Reduced opacity for darker, subtler connection lines
-                    ctx.strokeStyle = `rgba(96, 165, 250, ${opacityValue * 0.1})`;
+                    ctx.strokeStyle = `rgba(96, 165, 250, ${opacityValue * 0.3})`;
                     ctx.lineWidth = 1;
                     ctx.beginPath();
                     ctx.moveTo(nodes[a].x, nodes[a].y);
@@ -203,7 +204,7 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
       left: 0;
       width: 100%;
       height: 100%;
-      z-index: 1;
+      z-index: 11;
     }
     .content-wrapper {
         position: relative;
@@ -295,7 +296,15 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         </div>
 
         <section className="relative min-h-screen flex items-center justify-center text-center overflow-hidden px-4">
-            <div className="absolute inset-0 z-10" style={{ backgroundImage: `url('https://s2w.inc/files/contents/c9856ee8-6d00-45bc-9c72-855ed6d800fb')`, backgroundSize: 'cover', backgroundPosition: 'center', opacity:0.5 }}></div>
+          <div 
+  className="absolute inset-0 z-10" 
+  style={{ 
+    backgroundImage: "url('/backgroundimg.jpg')", 
+    backgroundSize: 'cover', 
+    backgroundPosition: 'center', 
+    opacity: 0.2 
+  }}
+></div>
             <div className="relative z-20 p-6">
                 <h1 className="text-6xl md:text-8xl lg:text-9xl font-black uppercase cinematic-title mb-6" data-aos="fade-down">
 
