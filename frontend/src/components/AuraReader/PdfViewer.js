@@ -1,4 +1,3 @@
-// frontend/src/components/AuraReader/PdfViewer.js
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Worker, Viewer } from '@react-pdf-viewer/core';
@@ -11,50 +10,44 @@ import '@react-pdf-viewer/highlight/lib/styles/index.css';
 
 import FloatingToolbar from './FloatingToolbar';
 
-const PdfViewer = ({ pdfFile, highlights, onAddHighlight, onAskBuddy, onSaveNote }) => {
+// --- FIXED: This component now accepts a pdfUrl string instead of a local file object ---
+const PdfViewer = ({ pdfUrl, highlights, onAddHighlight, onAskBuddy, onSaveNote }) => {
     const [selection, setSelection] = useState(null);
     const [toolbarPosition, setToolbarPosition] = useState(null);
     const viewerRef = useRef(null);
-    const [fileUrl, setFileUrl] = useState('');
 
-    // --- NEW: Custom render function to support multi-color highlights ---
+    // --- Highlighting functionality is preserved ---
     const renderHighlight = (props) => (
         <div
             key={props.key}
             style={{
                 ...props.style,
-                background: props.highlight.color || 'yellow', // Use our custom color
+                background: props.highlight.color || 'yellow',
                 opacity: 0.4,
             }}
         />
     );
 
-    // --- FIXED: Initialize plugins directly for stability ---
     const highlightPluginInstance = highlightPlugin({ renderHighlight });
     const { store } = highlightPluginInstance;
 
     useEffect(() => {
-        // This keeps the visual highlights in sync with the main state
-        // FIXED: Add a check to ensure the store is available
+        // Keeps the visual highlights in sync with the main state
         if (store) {
             store.setHighlights(highlights);
         }
     }, [highlights, store]);
 
-    // This function now correctly handles adding a new highlight
     const handleAddHighlight = (color) => {
         if (store) {
             const selectionRegion = store.getSelectionRegion();
             if (selectionRegion) {
-                // Create a new highlight object
                 const newHighlight = {
                     ...selectionRegion,
-                    color, // The color from the button
+                    color,
                     id: Date.now(),
                 };
-                // Update the main state in the parent component
                 onAddHighlight(newHighlight);
-                // Visually add the highlight to the PDF viewer
                 store.addHighlight(newHighlight);
             }
         }
@@ -62,13 +55,8 @@ const PdfViewer = ({ pdfFile, highlights, onAddHighlight, onAskBuddy, onSaveNote
 
     const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
-    useEffect(() => {
-        if (pdfFile) {
-            const url = URL.createObjectURL(pdfFile);
-            setFileUrl(url);
-            return () => URL.revokeObjectURL(url);
-        }
-    }, [pdfFile]);
+    // --- REMOVED: The useEffect that incorrectly used URL.createObjectURL on a string ---
+    // The Viewer component can now handle the Cloudinary URL directly from the pdfUrl prop.
 
     const handleMouseUp = useCallback(() => {
         const currentSelection = window.getSelection();
@@ -82,7 +70,7 @@ const PdfViewer = ({ pdfFile, highlights, onAddHighlight, onAskBuddy, onSaveNote
             setSelection({ text: selectedText });
             setToolbarPosition({
                 top: rect.top - viewerRect.top - 60,
-                left: rect.left - viewerRect.left + (rect.width / 2) - 150, // Adjusted for new toolbar width
+                left: rect.left - viewerRect.left + (rect.width / 2) - 150,
             });
         } else {
             setToolbarPosition(null);
@@ -101,9 +89,9 @@ const PdfViewer = ({ pdfFile, highlights, onAddHighlight, onAskBuddy, onSaveNote
             />
             <Worker workerUrl={`https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js`}>
                 <div className="h-full">
-                    {fileUrl ? (
+                    {pdfUrl ? (
                         <Viewer
-                            fileUrl={fileUrl}
+                            fileUrl={pdfUrl} // Directly use the URL from props
                             plugins={[defaultLayoutPluginInstance, highlightPluginInstance]}
                         />
                     ) : (
@@ -116,7 +104,7 @@ const PdfViewer = ({ pdfFile, highlights, onAddHighlight, onAskBuddy, onSaveNote
 };
 
 PdfViewer.propTypes = {
-    pdfFile: PropTypes.any,
+    pdfUrl: PropTypes.string, // Changed from pdfFile to pdfUrl
     highlights: PropTypes.array.isRequired,
     onAddHighlight: PropTypes.func.isRequired,
     onAskBuddy: PropTypes.func.isRequired,
@@ -124,3 +112,4 @@ PdfViewer.propTypes = {
 };
 
 export default PdfViewer;
+

@@ -1,168 +1,296 @@
-// frontend/src/components/AuraReader/AuraReader.js
 import React, { useState, useCallback, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { useBuddy } from '../../context/BuddyContext';
 import PdfViewer from './PdfViewer';
 import NotesPanel from './NotesPanel';
+import TranslatedTextViewer from './TranslatedTextViewer';
 import { Icon } from '../Icon';
 
-// --- NEW: A custom modal for delete confirmation ---
-const DeleteConfirmationModal = ({ noteTitle, onConfirm, onCancel }) => (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100]">
-        <div className="bg-black/80 border border-blue-800 rounded-2xl p-8 w-full max-w-md flex flex-col items-center gap-6 animate-fade-in">
-            <h2 className="text-2xl font-bold text-white">Confirm Deletion</h2>
-            <p className="text-gray-400 text-center">Are you sure you want to delete this note?</p>
-            <blockquote className="border-l-4 border-gray-500 pl-3 text-gray-400 italic w-full">
-                "{noteTitle}"
-            </blockquote>
-            <div className="flex gap-4 w-full mt-4">
-                <button onClick={onCancel} className="flex-1 py-3 bg-gray-700/50 text-white rounded-lg hover:bg-gray-600/50 transition-colors">Cancel</button>
-                <button onClick={onConfirm} className="flex-1 py-3 bg-red-600 text-white rounded-lg hover:bg-red-500 transition-colors">Delete</button>
+const LanguageSelector = ({ onSelect, selected, disabled }) => {
+    const languages = [
+        { code: 'Original', name: 'Original PDF' },
+        { code: 'English', name: 'English' },
+        { code: 'Hindi', name: 'हिन्दी' },
+        { code: 'Marathi', name: 'मराठी' },
+        { code: 'Gujarati', name: 'ગુજરાતી' },
+    ];
+    return (
+        <div className="relative">
+            <select
+                value={selected}
+                onChange={(e) => onSelect(e.target.value)}
+                disabled={disabled}
+                className="appearance-none w-full md:w-auto bg-blue-900/50 border border-blue-700/60 rounded-md pl-4 pr-10 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            >
+                {languages.map(lang => <option key={lang.code} value={lang.code}>{lang.name}</option>)}
+            </select>
+             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <Icon path="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" className="w-5 h-5 text-gray-400" />
             </div>
         </div>
-    </div>
-);
+    );
+};
+LanguageSelector.propTypes = {
+    onSelect: PropTypes.func.isRequired,
+    selected: PropTypes.string.isRequired,
+    disabled: PropTypes.bool,
+};
+
 
 const AuraReader = ({ onBack }) => {
-  const [pdfFile, setPdfFile] = useState(null);
-  const [highlights, setHighlights] = useState([]);
-  const [notes, setNotes] = useState([]);
-  const { onHighlight: askBuddy } = useBuddy();
-  
-  // --- NEW: State to manage the delete confirmation modal ---
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, noteId: null, noteText: '' });
+    const [document, setDocument] = useState(null);
+    const [pdfObjectUrl, setPdfObjectUrl] = useState('');
+    const [notes, setNotes] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const { onHighlight: askBuddy } = useBuddy();
+    
+    const [viewMode, setViewMode] = useState('pdf');
+    const [currentLanguage, setCurrentLanguage] = useState('Original');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [translatedContent, setTranslatedContent] = useState('');
+    const [translationCache, setTranslationCache] = useState({});
+    const [detectedSourceLang, setDetectedSourceLang] = useState('');
 
-  useEffect(() => {
-    const fetchNotes = async () => {
-      try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/notes`, {
-          headers: { 'x-auth-token': localStorage.getItem('token') }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setNotes(data);
+
+    const handleFileChange = async (event) => {
+        const file = event.target.files[0];
+        if (!file || file.type !== 'application/pdf') {
+            console.error('Please select a valid PDF file.');
+            return;
         }
-      } catch (error) {
-        console.error("Failed to fetch notes:", error);
-      }
+        setIsLoading(true);
+        setDocument(null); // Reset previous document
+        setPdfObjectUrl('');
+        setNotes([]);
+        setCurrentLanguage('Original');
+        setViewMode('pdf');
+
+        const formData = new FormData();
+        formData.append('pdf', file);
+
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/upload`, {
+                method: 'POST',
+                headers: { 'x-auth-token': localStorage.getItem('token') },
+                body: formData,
+            });
+            if (!response.ok) throw new Error('Failed to process PDF.');
+            const docData = await response.json();
+            setDocument(docData);
+        } catch (error) {
+            console.error("Error uploading document:", error);
+        } finally {
+            setIsLoading(false);
+        }
     };
-    fetchNotes();
-  }, []);
+    
+    useEffect(() => {
+        const fetchDependencies = async () => {
+            if (!document) return;
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type === 'application/pdf') {
-      setPdfFile(file);
-    } else {
-      // Replaced alert with console log for better practice
-      console.log('Please select a valid PDF file.');
-    }
-  };
+            // Fetch notes
+            try {
+                const notesResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/notes/document/${document._id}`, {
+                    headers: { 'x-auth-token': localStorage.getItem('token') }
+                });
+                if (notesResponse.ok) setNotes(await notesResponse.json());
+            } catch (error) {
+                console.error("Failed to fetch notes:", error);
+            }
 
-  const addHighlight = (highlight) => {
-    setHighlights(prev => [...prev, highlight]);
-  };
+            // Fetch the PDF from our secure streaming endpoint
+            try {
+                const pdfResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/documents/${document._id}/stream`, {
+                    headers: { 'x-auth-token': localStorage.getItem('token') }
+                });
+                if (!pdfResponse.ok) throw new Error('Failed to fetch PDF stream.');
+                
+                const blob = await pdfResponse.blob();
+                const objectUrl = URL.createObjectURL(blob);
+                setPdfObjectUrl(objectUrl);
+            } catch (error) {
+                console.error("Failed to load PDF:", error);
+            }
+        };
 
-  const saveNote = useCallback(async (selection) => {
-    try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/notes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': localStorage.getItem('token')
-        },
-        body: JSON.stringify({ originalText: selection.text }),
-      });
-      if (response.ok) {
-        const newNote = await response.json();
-        setNotes(prev => [newNote, ...prev]);
-        console.log('Note saved successfully!');
-      } else {
-        throw new Error('Failed to save note.');
-      }
-    } catch (error) {
-      console.error("Error saving note:", error);
-    }
-  }, []);
+        fetchDependencies();
+        
+        return () => {
+            if (pdfObjectUrl) URL.revokeObjectURL(pdfObjectUrl);
+        };
+    }, [document]);
 
-  // --- FIXED: This function now opens the confirmation modal ---
-  const handleDeleteRequest = (noteId, noteText) => {
-    setDeleteModal({ isOpen: true, noteId, noteText });
-  };
-
-  // --- NEW: This function handles the actual deletion after confirmation ---
-  const handleConfirmDelete = useCallback(async () => {
-    const { noteId } = deleteModal;
-    if (!noteId) return;
-
-    try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/notes/${noteId}`, {
-            method: 'DELETE',
-            headers: { 'x-auth-token': localStorage.getItem('token') }
-        });
-        if (response.ok) {
-            setNotes(prev => prev.filter(note => note._id !== noteId));
+    const handleLanguageSelect = useCallback(async (language) => {
+        setCurrentLanguage(language);
+        if (language === 'Original') {
+            setViewMode('pdf');
+            setTranslatedContent('');
+            setDetectedSourceLang('');
         } else {
-            // --- FIXED: More robust error handling to prevent JSON parsing errors ---
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
+            setViewMode('translated');
+            await fetchAndSetTranslatedPage(document._id, currentPage, language);
+        }
+    }, [document, currentPage]);
+
+    // In AuraReader.js
+
+    const fetchAndSetTranslatedPage = async (docId, pageNum, language) => {
+        const cacheKey = `${language}-${pageNum}`;
+        if (translationCache[cacheKey]) {
+            setTranslatedContent(translationCache[cacheKey].text);
+            setDetectedSourceLang(translationCache[cacheKey].sourceLanguage);
+            return;
+        }
+        
+        setIsLoading(true);
+        setTranslatedContent('');
+        setDetectedSourceLang('');
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/documents/${docId}/pages/${pageNum}/translate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': localStorage.getItem('token'),
+                },
+                body: JSON.stringify({ targetLanguage: language }),
+            });
+
+            // --- ENHANCEMENT: Handle specific error messages from the backend ---
+            if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || `Server error: ${response.status}`);
-            } else {
-                throw new Error(`Server responded with a non-JSON error page (Status: ${response.status}). Check the backend route.`);
+                // Use the specific message from our backend, or a generic one if not available.
+                const errorMessage = errorData.msg || 'An unknown error occurred during translation.';
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            setTranslatedContent(data.text);
+            setDetectedSourceLang(data.sourceLanguage);
+            setTranslationCache(prev => ({ ...prev, [cacheKey]: { text: data.text, sourceLanguage: data.sourceLanguage } }));
+        } catch (error) {
+            console.error(error);
+            // Display the specific error message to the user
+            setTranslatedContent(`Translation Failed: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handlePageChange = async (newPage) => {
+        if (document && newPage > 0 && newPage <= document.totalPages) {
+            setCurrentPage(newPage);
+            if (viewMode === 'translated') {
+                await fetchAndSetTranslatedPage(document._id, newPage, currentLanguage);
             }
         }
-    } catch (error) {
-        console.error("Error deleting note:", error);
-    } finally {
-        // Close the modal regardless of success or failure
-        setDeleteModal({ isOpen: false, noteId: null, noteText: '' });
+    };
+    
+    const saveNote = useCallback(async (selection) => {
+        if (!document) return;
+        const noteLanguage = currentLanguage === 'Original' ? 'English' : currentLanguage;
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/notes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': localStorage.getItem('token')
+                },
+                body: JSON.stringify({
+                    originalText: selection.text,
+                    documentId: document._id,
+                    language: noteLanguage
+                }),
+            });
+            if (response.ok) {
+                const { note: newNote } = await response.json();
+                setNotes(prev => [newNote, ...prev]);
+            } else {
+                throw new Error('Failed to save note.');
+            }
+        } catch (error) {
+            console.error("Error saving note:", error);
+        }
+    }, [document, currentLanguage]);
+
+    const handleDeleteNote = async (noteId) => {
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/notes/${noteId}`, {
+                method: 'DELETE',
+                headers: { 'x-auth-token': localStorage.getItem('token') }
+            });
+            if (response.ok) {
+                setNotes(prev => prev.filter(note => note._id !== noteId));
+            }
+        } catch (error) {
+            console.error("Error deleting note:", error);
+        }
+    };
+    
+    // --- NEW: Find the original text for the current page to pass to the viewer ---
+    const originalPageContent = document?.originalContent.find(p => p.page === currentPage)?.text || '';
+
+
+    if (!document) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[80vh] animate-fade-in">
+                 <div className="w-full max-w-lg p-8 bg-black/50 border border-blue-800/30 rounded-2xl text-center">
+                    <Icon path="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" className="w-16 h-16 mx-auto text-blue-400 mb-4" />
+                    <h2 className="text-3xl font-bold mb-2">Welcome to Aura Reader</h2>
+                    <p className="text-gray-400 mb-6">Upload a PDF to begin your interactive study session.</p>
+                    <label htmlFor="pdf-upload" className={`bg-blue-600 ${isLoading ? 'opacity-50' : 'hover:bg-blue-500'} text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer`}>
+                        {isLoading ? 'Processing...' : 'Select PDF'}
+                    </label>
+                    <input id="pdf-upload" type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" disabled={isLoading} />
+                </div>
+            </div>
+        );
     }
-  }, [deleteModal]);
 
-  if (!pdfFile) {
     return (
-      <div className="flex flex-col items-center justify-center h-[80vh] animate-fade-in">
-        <div className="w-full max-w-lg p-8 bg-black/50 border border-blue-800/30 rounded-2xl text-center">
-            <Icon path="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" className="w-16 h-16 mx-auto text-blue-400 mb-4" />
-            <h2 className="text-3xl font-bold mb-2">Welcome to Aura Reader</h2>
-            <p className="text-gray-400 mb-6">Upload a PDF to begin your interactive study session.</p>
-            <label htmlFor="pdf-upload" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition duration-300 cursor-pointer">
-                Select PDF
-            </label>
-            <input id="pdf-upload" type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
+        <div className="flex h-[calc(100vh-100px)] animate-fade-in">
+            <div className="flex-1 flex flex-col">
+                <div className="p-4 bg-black/30 border-b border-blue-900/50 flex justify-between items-center">
+                    <button onClick={onBack} className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
+                         <Icon path="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" className="w-5 h-5 mr-2" /> Back
+                    </button>
+                     <LanguageSelector onSelect={handleLanguageSelect} selected={currentLanguage} disabled={isLoading} />
+                </div>
+                <div className="flex-1 relative">
+                     {isLoading && viewMode === 'translated' && (
+                        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
+                            <div className="flex items-center gap-3 text-white"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>Translating...</div>
+                        </div>
+                     )}
+                     {viewMode === 'pdf' ? (
+                        <PdfViewer
+                            pdfUrl={pdfObjectUrl}
+                            onSaveNote={saveNote}
+                            onAskBuddy={askBuddy}
+                            highlights={[]} 
+                            onAddHighlight={() => {}}
+                        />
+                     ) : (
+                        <TranslatedTextViewer
+                            translatedContent={translatedContent}
+                            originalContent={originalPageContent} // --- NEW: Pass original content
+                            sourceLanguage={detectedSourceLang} // --- NEW: Pass detected language
+                            targetLanguage={currentLanguage} // --- NEW: Pass target language
+                            currentPage={currentPage}
+                            totalPages={document.totalPages}
+                            onPageChange={handlePageChange}
+                            onSaveNote={saveNote}
+                            onAskBuddy={askBuddy}
+                        />
+                     )}
+                </div>
+            </div>
+            <NotesPanel notes={notes} onDeleteNote={handleDeleteNote} />
         </div>
-      </div>
     );
-  }
-
-  return (
-    <div className="flex h-[calc(100vh-100px)] animate-fade-in">
-        {deleteModal.isOpen && (
-            <DeleteConfirmationModal
-                noteTitle={deleteModal.noteText}
-                onConfirm={handleConfirmDelete}
-                onCancel={() => setDeleteModal({ isOpen: false, noteId: null, noteText: '' })}
-            />
-        )}
-        <div className="flex-1 flex flex-col">
-            <div className="p-4 bg-black/30 border-b border-blue-900/50 flex justify-between items-center">
-                <button onClick={onBack} className="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                    <Icon path="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" className="w-5 h-5 mr-2" /> Back
-                </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-                <PdfViewer
-                    pdfFile={pdfFile}
-                    highlights={highlights}
-                    onAddHighlight={addHighlight}
-                    onAskBuddy={askBuddy}
-                    onSaveNote={saveNote}
-                />
-            </div>
-        </div>
-        <NotesPanel notes={notes} onDeleteNote={handleDeleteRequest} />
-    </div>
-  );
+};
+AuraReader.propTypes = {
+    onBack: PropTypes.func.isRequired,
 };
 
 export default AuraReader;
+

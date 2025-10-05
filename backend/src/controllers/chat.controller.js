@@ -64,7 +64,7 @@ exports.summarizeChat = async (req, res) => {
 
         const completion = await groq.chat.completions.create({
             messages: messagesForSummary,
-            model: 'llama3-8b-8192',
+            model: 'l',
             stream: false, 
         });
 
