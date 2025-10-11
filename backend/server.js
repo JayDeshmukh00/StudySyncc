@@ -40,6 +40,7 @@ const assessmentRoutes = require('./src/routes/assessment.routes');
 const chatRoutes = require('./src/routes/chat.routes');
 const flashcardRoutes = require('./src/routes/flashcard.routes');
 const buddyRoutes = require('./src/routes/buddy.js');
+// This line correctly imports the router that contains your document, notes, AND quiz routes
 const auraRoutes = require('./src/routes/aura.routes.js');
 
 app.use('/api/auth', authRoutes);
@@ -49,6 +50,7 @@ app.use('/api', assessmentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api', flashcardRoutes);
 app.use('/api/buddy', buddyRoutes);
+// This line correctly tells Express to use the auraRoutes for any path starting with /api/aura
 app.use('/api/aura', auraRoutes);
 
 // --- 6. HEALTH CHECK ROUTE ---
@@ -62,3 +64,4 @@ app.get('/', (req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Server is running on port ${PORT}`);
 });
+

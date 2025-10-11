@@ -1,19 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const authMiddleware = require('../middleware/auth.middleware');
+// It seems you are using a single auth middleware, ensure the path is correct
+const authMiddleware = require('../middleware/auth.middleware'); 
+
+// --- Import ALL necessary controllers ---
 const {
     uploadAndProcessPdf,
     getDocuments,
     getDocumentById,
-    streamDocument, // Correctly included for streaming
+    streamDocument,
     translatePage,
     saveNote,
     getNotesForDocument,
     deleteNote
 } = require('../controllers/aura.controller');
 
-// Use multer's memory storage to process the file before uploading
+// --- NEW: Import the quiz controller ---
+const {
+    generateQuiz,
+    evaluateAnswer,
+    analyzePerformance
+} = require('../controllers/auraQuiz.controller');
+
+
+// Multer setup for file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -21,10 +32,7 @@ const upload = multer({ storage });
 router.post('/upload', [authMiddleware, upload.single('pdf')], uploadAndProcessPdf);
 router.get('/documents', authMiddleware, getDocuments);
 router.get('/documents/:docId', authMiddleware, getDocumentById);
-
-// --- NEW/FIXED: Securely streams the PDF content through your server ---
 router.get('/documents/:docId/stream', authMiddleware, streamDocument);
-
 router.post('/documents/:docId/pages/:pageNum/translate', authMiddleware, translatePage);
 
 
@@ -33,5 +41,11 @@ router.post('/notes', authMiddleware, saveNote);
 router.get('/notes/document/:docId', authMiddleware, getNotesForDocument);
 router.delete('/notes/:noteId', authMiddleware, deleteNote);
 
-module.exports = router;
 
+// --- FIX: Add the new Quiz Routes ---
+router.post('/quiz/generate', authMiddleware, generateQuiz);
+router.post('/quiz/evaluate', authMiddleware, evaluateAnswer);
+router.post('/quiz/analyze', authMiddleware, analyzePerformance);
+
+
+module.exports = router;
