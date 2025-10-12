@@ -37,6 +37,8 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
     const [userTranscript, setUserTranscript] = useState('');
     const [quizResults, setQuizResults] = useState([]);
     const [finalAnalysis, setFinalAnalysis] = useState('');
+    const [currentFeedback, setCurrentFeedback] = useState('');
+    const [currentCorrectAnswer, setCurrentCorrectAnswer] = useState('');
     const lottieRef = useRef(null);
 
     const [localDocument, setLocalDocument] = useState(null);
@@ -78,6 +80,7 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
         switch (quizState) {
             case 'asking':
             case 'evaluating':
+            case 'result':
                 lottieRef.current.play();
                 break;
             default:
@@ -145,7 +148,7 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
             const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/quiz/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') },
-                body: JSON.stringify({ documentId: idToUse, numQuestions: 5 }),
+                body: JSON.stringify({ documentId: idToUse, numQuestions: 10 }),
             });
 
             if (!response.ok) {
@@ -202,19 +205,15 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
                 }),
             });
             const evaluation = await response.json();
-            
+
             const result = { ...currentQuestion, userAnswer: userTranscript, isCorrect: evaluation.isCorrect };
             const updatedResults = [...quizResults, result];
             setQuizResults(updatedResults);
 
-            speak(evaluation.feedback, () => {
-                if (currentQuestionIndex < quizData.length - 1) {
-                    setCurrentQuestionIndex(prev => prev + 1);
-                    setQuizState('asking');
-                } else {
-                    handleFinishQuiz(updatedResults);
-                }
-            });
+            setCurrentFeedback(evaluation.feedback);
+            setCurrentCorrectAnswer(currentQuestion.answer);
+            setQuizState('result');
+            speak(`${evaluation.feedback} The correct answer is: ${currentQuestion.answer}`);
         } catch (error) {
             console.error('Evaluation failed:', error);
             alert('Sorry, there was an error evaluating your answer. Moving to the next question.');
@@ -224,6 +223,17 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
                 } else {
                     handleFinishQuiz(quizResults);
                 }
+        }
+    };
+
+    const handleNextQuestion = () => {
+        setCurrentFeedback('');
+        setCurrentCorrectAnswer('');
+        if (currentQuestionIndex < quizData.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+            setQuizState('asking');
+        } else {
+            handleFinishQuiz(quizResults);
         }
     };
 
@@ -301,6 +311,31 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
                     <p className="mt-2 text-gray-300 whitespace-pre-wrap">{finalAnalysis}</p>
                 </div>
                 <button onClick={onFinishQuiz} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">Back to Reader</button>
+            </div>
+        );
+    }
+
+    if (quizState === 'result') {
+        return (
+            <div className="flex flex-col h-full p-8 items-center text-center">
+                <Lottie lottieRef={lottieRef} animationData={berryBotAnimation} loop={true} autoplay={false} style={{ width: 150, height: 150 }} />
+                <div className="text-sm text-gray-400 mt-4">Question {currentQuestionIndex + 1} of {quizData.length}</div>
+                <h2 className="text-2xl lg:text-3xl font-semibold my-6">{quizData[currentQuestionIndex]?.question}</h2>
+                <div className="w-full max-w-2xl bg-black/30 rounded-lg p-4 text-left mb-4">
+                    <h3 className="font-bold text-lg text-blue-300 mb-2">Your Answer:</h3>
+                    <p className="text-gray-300">{userTranscript}</p>
+                </div>
+                <div className="w-full max-w-2xl bg-black/30 rounded-lg p-4 text-left mb-4">
+                    <h3 className="font-bold text-lg text-green-300 mb-2">Feedback:</h3>
+                    <p className="text-gray-300">{currentFeedback}</p>
+                </div>
+                <div className="w-full max-w-2xl bg-black/30 rounded-lg p-4 text-left mb-6">
+                    <h3 className="font-bold text-lg text-yellow-300 mb-2">Correct Answer:</h3>
+                    <p className="text-gray-300">{currentCorrectAnswer}</p>
+                </div>
+                <button onClick={handleNextQuestion} className="px-8 py-4 bg-blue-600 rounded-full hover:bg-blue-500 font-bold">
+                    Next Question
+                </button>
             </div>
         );
     }
