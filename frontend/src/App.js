@@ -206,7 +206,7 @@ function AppContent() {
     
     return (
         <div className="flex flex-col min-h-screen font-sans bg-white text-gray-800 dark:bg-black dark:text-gray-300">
-            {showLayout && <Header onToggleTheme={toggleTheme} currentTheme={theme} onHomeClick={() => setView('features')} onLogout={handleLogout} user={user}/>}
+            {showLayout && <Header onToggleTheme={toggleTheme} currentTheme={theme} onHomeClick={() => setView('features')} onLogout={handleLogout} user={user} onSetView={setView}/>}
             
             <main className={`flex-grow ${showLayout ? "container mx-auto px-4 py-4 sm:px-6 sm:py-6 md:px-8 md:py-8" : ""}`}>
                 {renderView()}

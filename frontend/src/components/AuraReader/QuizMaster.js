@@ -1,25 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
+import Lottie from 'lottie-react';
+import { Icon } from '../Icon'; // Adjust path if needed
+import berryBotAnimation from './animations/bot.json'; // Adjust path if needed
 
-// --- ACTION REQUIRED: PLEASE VERIFY THE FOLLOWING ---
-
-// 1. LOTTIE INSTALLATION:
-//    Ensure you have installed lottie-react by running this command in your frontend terminal:
-//    npm install lottie-react
-import Lottie from 'lottie-react'; 
-
-// 2. ICON PATH:
-//    This path assumes your Icon.js file is located at 'src/components/Icon.js'.
-//    If your file is elsewhere, please adjust the path. For example, if it's in the same folder, use './Icon'.
-import { Icon } from '../Icon'; 
-
-// 3. ANIMATION PATH:
-//    This path assumes your animation file is at 'src/components/AuraReader/animations/bot.json'.
-//    Please ensure this path is correct for your project structure.
-import berryBotAnimation from './animations/bot.json'; 
-
-
-// --- Browser API Setup for Voice ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
@@ -30,7 +14,6 @@ if (recognition) {
 }
 
 const QuizMaster = ({ documentId, onFinishQuiz }) => {
-    // --- State Management ---
     const [quizState, setQuizState] = useState('idle');
     const [quizData, setQuizData] = useState([]);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -40,13 +23,11 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
     const [currentFeedback, setCurrentFeedback] = useState('');
     const [currentCorrectAnswer, setCurrentCorrectAnswer] = useState('');
     const lottieRef = useRef(null);
-
     const [localDocument, setLocalDocument] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
-    
     const [forceUploadView, setForceUploadView] = useState(false);
+    const [inputMode, setInputMode] = useState('voice');
 
-    // --- Voice Synthesis (Text-to-Speech) ---
     const speak = useCallback((text, onEndCallback) => {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
@@ -56,25 +37,26 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
         window.speechSynthesis.speak(utterance);
     }, []);
 
-    // --- Voice Recognition (Speech-to-Text) ---
     const startListening = useCallback(() => {
-        if (!recognition) return;
+        if (!recognition || inputMode !== 'voice') return;
         setUserTranscript('');
         setQuizState('listening');
         recognition.start();
-
         recognition.onresult = (event) => {
+            let interimTranscript = '';
             let finalTranscript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
+            for (let i = 0; i < event.results.length; ++i) {
+                const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
+                    finalTranscript += transcript + ' ';
+                } else {
+                    interimTranscript += transcript;
                 }
             }
-            setUserTranscript(prev => prev + finalTranscript);
+            setUserTranscript(finalTranscript.trim() + interimTranscript);
         };
-    }, []);
+    }, [inputMode]);
 
-    // --- Animation Control ---
     useEffect(() => {
         if (!lottieRef.current) return;
         switch (quizState) {
@@ -88,8 +70,26 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
                 break;
         }
     }, [quizState]);
-    
-    // --- Logic to handle direct file upload ---
+
+    useEffect(() => {
+        if (quizState === 'result' && currentFeedback && currentCorrectAnswer) {
+            speak(`${currentFeedback} The correct answer is: ${currentCorrectAnswer}`);
+        }
+    }, [quizState, currentFeedback, currentCorrectAnswer, speak]);
+
+    useEffect(() => {
+        if (quizState === 'asking' && quizData.length > 0) {
+            const questionText = quizData[currentQuestionIndex].question;
+            speak(`Question ${currentQuestionIndex + 1}. ${questionText}`, () => {
+                if (inputMode === 'voice') {
+                    startListening();
+                } else {
+                    setQuizState('listening');
+                }
+            });
+        }
+    }, [quizState, quizData, currentQuestionIndex, speak, startListening, inputMode]);
+
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (!file || file.type !== 'application/pdf') {
@@ -100,19 +100,16 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
         setLocalDocument(null);
         const formData = new FormData();
         formData.append('pdf', file);
-
         try {
             const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/upload`, {
                 method: 'POST',
                 headers: { 'x-auth-token': localStorage.getItem('token') },
                 body: formData,
             });
-
-            // --- THE FIX: Add robust error handling for the upload response ---
             if (!response.ok) {
                 const contentType = response.headers.get("content-type");
                 let errorMessage;
-                if (contentType && contentType.indexOf("application/json") !== -1) {
+                if (contentType && contentType.includes("application/json")) {
                     const errorData = await response.json();
                     errorMessage = errorData.msg || 'Failed to process PDF.';
                 } else {
@@ -120,7 +117,6 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
                 }
                 throw new Error(errorMessage);
             }
-
             const docData = await response.json();
             setLocalDocument(docData);
             setForceUploadView(false); 
@@ -132,17 +128,12 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
         }
     };
 
-
-    // --- Core Quiz Logic ---
     const handleStartQuiz = async () => {
         const idToUse = localDocument?._id || documentId;
-
         if (!idToUse) {
             alert("Could not start quiz: No document has been selected. Please upload a PDF.");
-            console.error("Attempted to start quiz with no documentId.");
             return;
         }
-
         setQuizState('generating');
         try {
             const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/aura/quiz/generate`, {
@@ -150,24 +141,14 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
                 headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') },
                 body: JSON.stringify({ documentId: idToUse, numQuestions: 10 }),
             });
-
             if (!response.ok) {
-                const contentType = response.headers.get("content-type");
-                let errorMessage;
-                if (contentType && contentType.indexOf("application/json") !== -1) {
-                    const errorData = await response.json();
-                    errorMessage = errorData.msg || `Server error: ${response.status}`;
-                } else {
-                    errorMessage = await response.text();
-                }
-                throw new Error(errorMessage);
+                const errorData = await response.json();
+                throw new Error(errorData.msg || `Server error: ${response.status}`);
             }
-
             const data = await response.json();
             if (!Array.isArray(data) || data.length === 0) {
                  throw new Error("The AI returned an invalid or empty quiz format.");
             }
-
             setQuizData(data);
             setCurrentQuestionIndex(0);
             setQuizResults([]);
@@ -178,16 +159,6 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
             setQuizState('idle');
         }
     };
-
-    // Main Game Loop
-    useEffect(() => {
-        if (quizState === 'asking' && quizData.length > 0) {
-            const questionText = quizData[currentQuestionIndex].question;
-            speak(`Question ${currentQuestionIndex + 1}. ${questionText}`, () => {
-                startListening();
-            });
-        }
-    }, [quizState, quizData, currentQuestionIndex, speak, startListening]);
 
     const handleEvaluateAnswer = async () => {
         if (recognition) recognition.stop();
@@ -204,31 +175,60 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
                     userAnswer: userTranscript,
                 }),
             });
+            
+            if (!response.ok) {
+                let errorMessage;
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    const errorData = await response.json();
+                    errorMessage = errorData.msg || 'The server sent an unnamed JSON error.';
+                } else {
+                    const textError = await response.text();
+                    errorMessage = textError || `Failed to evaluate answer. Server status: ${response.status}.`;
+                }
+                throw new Error(errorMessage);
+            }
+            
             const evaluation = await response.json();
+            if (typeof evaluation.feedback === 'undefined' || typeof evaluation.isCorrect === 'undefined') {
+                throw new Error("Received an invalid evaluation format from the server.");
+            }
 
             const result = { ...currentQuestion, userAnswer: userTranscript, isCorrect: evaluation.isCorrect };
-            const updatedResults = [...quizResults, result];
-            setQuizResults(updatedResults);
-
+            setQuizResults(prev => [...prev, result]);
             setCurrentFeedback(evaluation.feedback);
             setCurrentCorrectAnswer(currentQuestion.answer);
             setQuizState('result');
-            speak(`${evaluation.feedback} The correct answer is: ${currentQuestion.answer}`);
+
         } catch (error) {
             console.error('Evaluation failed:', error);
-            alert('Sorry, there was an error evaluating your answer. Moving to the next question.');
-             if (currentQuestionIndex < quizData.length - 1) {
-                    setCurrentQuestionIndex(prev => prev + 1);
-                    setQuizState('asking');
-                } else {
-                    handleFinishQuiz(quizResults);
-                }
+            alert(`Sorry, an error occurred: ${error.message}. Marking as incorrect and moving on.`);
+
+            const failedResult = { 
+                ...currentQuestion, 
+                userAnswer: userTranscript, 
+                isCorrect: false, 
+                error: `Evaluation failed: ${error.message}` 
+            };
+            const updatedResults = [...quizResults, failedResult];
+            setQuizResults(updatedResults);
+
+            if (currentQuestionIndex < quizData.length - 1) {
+                setCurrentFeedback('');
+                setCurrentCorrectAnswer('');
+                setUserTranscript('');
+                setCurrentQuestionIndex(prev => prev + 1);
+                setQuizState('asking');
+            } else {
+                handleFinishQuiz(updatedResults);
+            }
         }
     };
 
     const handleNextQuestion = () => {
         setCurrentFeedback('');
         setCurrentCorrectAnswer('');
+        setUserTranscript('');
         if (currentQuestionIndex < quizData.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
             setQuizState('asking');
@@ -253,10 +253,11 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
             speak('Quiz complete! I was unable to generate a final analysis at this time.');
         }
     };
-
+    
     // --- UI Rendering ---
+    
     if (!recognition) {
-        return <div className="p-8 text-center text-yellow-400 bg-yellow-900/50 rounded-lg">Your browser does not support the Web Speech API required for this feature. Please use Google Chrome or Microsoft Edge.</div>;
+        return <div className="p-8 text-center text-yellow-400 bg-yellow-900/50 rounded-lg">Your browser does not support the Web Speech API. Please use Google Chrome or Microsoft Edge.</div>;
     }
 
     if (quizState === 'idle') {
@@ -339,21 +340,59 @@ const QuizMaster = ({ documentId, onFinishQuiz }) => {
             </div>
         );
     }
-
+    
     return (
         <div className="flex flex-col h-full p-8 items-center text-center">
             <Lottie lottieRef={lottieRef} animationData={berryBotAnimation} loop={true} autoplay={false} style={{ width: 150, height: 150 }} />
             <div className="text-sm text-gray-400 mt-4">Question {currentQuestionIndex + 1} of {quizData.length}</div>
             <h2 className="text-2xl lg:text-3xl font-semibold my-6">{quizData[currentQuestionIndex]?.question}</h2>
-            <div className="w-full max-w-2xl min-h-[8rem] bg-black/30 rounded-lg p-4 text-left overflow-y-auto">
-                <p className="text-gray-300">{userTranscript || "Your answer will appear here..."}</p>
+
+            <div className="flex items-center justify-center gap-2 mb-4 p-1 bg-black/30 rounded-lg">
+                <button 
+                    onClick={() => setInputMode('voice')} 
+                    className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${inputMode === 'voice' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-white/10'}`}
+                >
+                    Voice Input
+                </button>
+                <button 
+                    onClick={() => setInputMode('text')} 
+                    className={`px-4 py-2 text-sm font-bold rounded-md transition-colors ${inputMode === 'text' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-white/10'}`}
+                >
+                    Text Input
+                </button>
             </div>
-            {quizState === 'listening' && (
+
+            {inputMode === 'voice' ? (
+                <div className="w-full max-w-2xl min-h-[8rem] bg-black/30 rounded-lg p-4 text-left overflow-y-auto">
+                    <p className="text-gray-300">{userTranscript || "Your answer will appear here..."}</p>
+                </div>
+            ) : (
+                <textarea
+                    value={userTranscript}
+                    onChange={(e) => setUserTranscript(e.target.value)}
+                    placeholder="Type your answer here..."
+                    className="w-full max-w-2xl min-h-[8rem] bg-black/30 rounded-lg p-4 text-gray-200 focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                    rows="4"
+                />
+            )}
+
+            {quizState === 'listening' && inputMode === 'voice' && (
                  <button onClick={handleEvaluateAnswer} className="mt-8 px-8 py-4 bg-green-600 rounded-full hover:bg-green-500 font-bold flex items-center gap-3 animate-pulse">
-                    <Icon path="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m12 0v-1.5a6 6 0 0 0-十二 0v1.5" className="w-6 h-6" />
+                    <Icon path="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m12 0v-1.5a6 6 0 0 0-12 0v1.5" className="w-6 h-6" />
                     I'm Done Answering
                 </button>
             )}
+            
+            {quizState === 'listening' && inputMode === 'text' && (
+                 <button 
+                    onClick={handleEvaluateAnswer} 
+                    disabled={!userTranscript.trim()}
+                    className="mt-8 px-8 py-4 bg-green-600 rounded-full font-bold transition disabled:bg-gray-600 disabled:cursor-not-allowed hover:bg-green-500"
+                >
+                    Submit Answer
+                </button>
+            )}
+
             {quizState === 'evaluating' && <p className="mt-8 text-lg text-blue-300">Let me think...</p>}
         </div>
     );
@@ -365,4 +404,3 @@ QuizMaster.propTypes = {
 };
 
 export default QuizMaster;
-

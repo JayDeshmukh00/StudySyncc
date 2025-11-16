@@ -1,22 +1,61 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Icon } from './Icon';
 
 const DayDetailView = ({ section, onUpdate, onStartAssessment, planId }) => {
     const [notes, setNotes] = useState(section.notes || '');
+    const notesRef = useRef(notes);
+    const timeoutRef = useRef(null);
 
     useEffect(() => {
-        if (notes !== (section.notes || '')) {
-            const handler = setTimeout(() => {
-                onUpdate({ notes });
-            }, 1500);
-            return () => clearTimeout(handler);
-        }
-    }, [notes, section.notes, onUpdate]);
+        notesRef.current = notes;
+    }, [notes]);
 
     useEffect(() => {
         setNotes(section.notes || '');
-    }, [section._id, section.notes]); 
-    
+    }, [section._id]);
+
+    const handleNotesChange = (e) => {
+        const newNotes = e.target.value;
+        setNotes(newNotes);
+        notesRef.current = newNotes;
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
+            onUpdate({ notes: notesRef.current });
+        }, 1500);
+    };
+
+    const handleDownload = async (planId, sectionId, title, day) => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('No token, authorization denied. Please log in again.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/plan/${planId}/section/${sectionId}/download`, {
+                method: 'GET',
+                headers: { 'x-auth-token': token },
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Day_${day}_${title}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Download failed:', error);
+            alert('Failed to download the section. Please try again.');
+        }
+    };
+
     const DetailCard = ({ title, iconPath, children }) => (
         <div className="bg-white/5 dark:bg-black/30 backdrop-blur-sm p-6 rounded-lg border border-blue-800/20"><h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white flex items-center"><Icon path={iconPath} className="w-6 h-6 mr-3 text-blue-500" /> {title}</h3>{children}</div>
     );
@@ -30,7 +69,7 @@ const DayDetailView = ({ section, onUpdate, onStartAssessment, planId }) => {
                     <p className="text-lg text-gray-500 dark:text-gray-300 mt-1">{section.topic}</p>
                 </div>
                 <div className="flex items-center space-x-4">
-                    <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/plan/${planId}/section/${section._id}/download`} download className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center"><Icon path="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" className="w-5 h-5 mr-2"/>Download</a>
+                    <button onClick={() => handleDownload(planId, section._id, section.title, section.day)} className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center"><Icon path="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" className="w-5 h-5 mr-2"/>Download</button>
                         {section.status !== 'completed' && <button onClick={() => onUpdate({status: 'completed'})} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center"><Icon path="M4.5 12.75l6 6 9-13.5" className="w-5 h-5 mr-2" />Mark Complete</button>}
                 </div>
             </div>
@@ -41,7 +80,7 @@ const DayDetailView = ({ section, onUpdate, onStartAssessment, planId }) => {
                 {/* CHANGE: Brightened the list item text */}
                 <DetailCard title="Key Points" iconPath="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"><ul className="list-disc list-inside text-gray-600 dark:text-gray-200 space-y-2">{(section.keyPoints || []).map((point, i) => <li key={i}>{point}</li>)}</ul></DetailCard>
                 <DetailCard title="My Notes (autosaves)" iconPath="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10">
-                    <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full h-40 p-3 bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-gray-200" placeholder="Jot down your thoughts... they'll be saved automatically."/>
+                    <textarea value={notes} onChange={handleNotesChange} className="w-full h-40 p-3 bg-gray-50 dark:bg-gray-900/50 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-gray-200" placeholder="Jot down your thoughts... they'll be saved automatically."/>
                 </DetailCard>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <DetailCard title="Video Resources" iconPath="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z M10.5 8.25L15.75 12l-5.25 3.75v-7.5Z">

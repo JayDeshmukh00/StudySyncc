@@ -222,10 +222,11 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
         background: radial-gradient(ellipse at 50% -20%, rgba(10, 5, 40, 0.15) 0%, rgba(0,0,0,0.8) 70%, #000 100%);
     }
     .cinematic-title {
-      font-family: 'Rajdhani', sans-serif;
-      font-weight: 700;
-      color: #f9fafb;
-      text-shadow: 0 0 15px rgba(100, 180, 255, 0.3), 1px 1px 2px rgba(0,0,0,0.9);
+      font-family: 'Poppins', sans-serif;
+      font-weight: 800;
+      color: #F5F5F5;
+      letter-spacing: -0.02em;
+      text-shadow: 0 0 15px rgba(0, 191, 255, 0.3);
       transition: text-shadow 0.3s ease;
     }
     .cinematic-title:hover {
@@ -259,6 +260,8 @@ export const LandingPage = ({ onLoginClick, onSignUpClick }) => {
     .feature-card {
         transition: transform 0.3s ease-in-out;
         transform-style: preserve-3d;
+        cursor: pointer;
+        user-select: none;
     }
     .feature-card:hover {
         transform: rotateY(3deg) scale(1.02);
